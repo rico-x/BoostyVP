@@ -11,11 +11,12 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "ru.ardcode.boostytv"
+        // Separate installation: never overwrite the upstream app or its encrypted login.
+        applicationId = "ru.ardcode.boostytv.focusfix"
         minSdk = 23
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.02"
+        versionCode = 3
+        versionName = "0.02-focusfix.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

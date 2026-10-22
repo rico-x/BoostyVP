@@ -10,6 +10,11 @@ import androidx.media3.ui.PlayerView
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 internal class TvPlayerView(context: Context) : PlayerView(context) {
     private var hidingControlsOnBack = false
+    private val restorePlaybackFocus = Runnable {
+        // The factory runs before AndroidView is attached. Compose can take focus
+        // back while the dialog's loading screen is replaced by this native view.
+        if (isAttachedToWindow && hasWindowFocus() && !hasFocus()) requestFocus()
+    }
     private val hideControlsOnBack = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() {
             hideController()
@@ -35,12 +40,26 @@ internal class TvPlayerView(context: Context) : PlayerView(context) {
         findViewTreeOnBackPressedDispatcherOwner()?.onBackPressedDispatcher
             ?.addCallback(hideControlsOnBack)
         hideControlsOnBack.isEnabled = isControllerFullyVisible
+        post(restorePlaybackFocus)
+    }
+
+    override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
+        super.onWindowFocusChanged(hasWindowFocus)
+        if (hasWindowFocus) post(restorePlaybackFocus)
     }
 
     override fun onDetachedFromWindow() {
         hideControlsOnBack.remove()
+        removeCallbacks(restorePlaybackFocus)
         hidingControlsOnBack = false
         super.onDetachedFromWindow()
+    }
+
+    /** Bridge only player keys when Compose, rather than a native child, has focus. */
+    internal fun dispatchKeyEventFromHost(event: KeyEvent): Boolean {
+        if (hasFocus() || event.keyCode !in PLAYER_KEYS) return false
+        requestFocus()
+        return dispatchKeyEvent(event)
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
@@ -61,5 +80,16 @@ internal class TvPlayerView(context: Context) : PlayerView(context) {
             }
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    private companion object {
+        val PLAYER_KEYS = setOf(
+            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER,
+            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE,
+            KeyEvent.KEYCODE_MEDIA_REWIND, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
+            KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_MEDIA_STOP,
+        )
     }
 }

@@ -11,7 +11,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -147,7 +146,7 @@ private fun VideoSurface(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (playbackError == null) AndroidView(
+        if (playbackError == null) TvPlayerHost(
             factory = { ctx ->
                 val view = TvPlayerView(ctx)
                 view.apply {
@@ -161,10 +160,6 @@ private fun VideoSurface(
                     quality.attach(view)
                     applyPlayerAppearance(view, state.title)
                     setBackgroundColor(android.graphics.Color.BLACK)
-                    // The surface must take D-pad focus or the transport
-                    // controls are unreachable with a remote.
-                    isFocusable = true
-                    requestFocus()
                 }
             },
             onRelease = { it.player = null },

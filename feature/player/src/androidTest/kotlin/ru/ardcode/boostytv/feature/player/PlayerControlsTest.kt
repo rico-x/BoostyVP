@@ -6,13 +6,15 @@ import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.View
 import android.widget.Button
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.Player
@@ -22,6 +24,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import java.io.File
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -37,6 +41,42 @@ class PlayerControlsTest {
     private lateinit var view: TvPlayerView
     private var dismissed = false
     private val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+
+    @Test fun playerAddedAfterLoadingAcceptsPauseSeekAndDpad() {
+        screen(afterLoading = true)
+        compose.runOnIdle { view.hideController() }
+        device.pressDPadCenter()
+        compose.waitUntil(timeoutMillis = 3_000) { compose.runOnIdle { view.isControllerFullyVisible } }
+        device.pressKeyCode(KeyEvent.KEYCODE_MEDIA_PAUSE)
+        compose.waitUntil(timeoutMillis = 3_000) { compose.runOnIdle { !view.player!!.playWhenReady } }
+        val before = compose.runOnIdle { view.player!!.currentPosition }
+        device.pressKeyCode(KeyEvent.KEYCODE_MEDIA_FAST_FORWARD)
+        compose.waitUntil(timeoutMillis = 3_000) {
+            compose.runOnIdle { view.player!!.currentPosition >= before + 29_000 }
+        }
+        device.pressKeyCode(KeyEvent.KEYCODE_MEDIA_REWIND)
+        compose.waitUntil(timeoutMillis = 3_000) {
+            compose.runOnIdle { view.player!!.currentPosition < before + 21_000 }
+        }
+        device.pressKeyCode(KeyEvent.KEYCODE_MEDIA_PLAY)
+        compose.waitUntil(timeoutMillis = 3_000) { compose.runOnIdle { view.player!!.playWhenReady } }
+        compose.runOnIdle { assertFalse("Transport keys do not dismiss video", dismissed) }
+    }
+
+    @Test fun composeHostForwardsPlayerKeysWithoutInterceptingSystemKeys() {
+        val hostFocus = FocusRequester()
+        screen(afterLoading = true, hostModifier = Modifier.focusRequester(hostFocus))
+        compose.runOnIdle {
+            hostFocus.requestFocus()
+            assertFalse("Reproduce the native player losing focus", view.hasFocus())
+            val now = SystemClock.uptimeMillis()
+            assertFalse(view.dispatchKeyEventFromHost(KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_HOME, 0)))
+            assertFalse(view.dispatchKeyEventFromHost(KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_VOLUME_UP, 0)))
+        }
+        device.pressKeyCode(KeyEvent.KEYCODE_MEDIA_PAUSE)
+        compose.waitUntil(timeoutMillis = 3_000) { compose.runOnIdle { !view.player!!.playWhenReady } }
+        compose.runOnIdle { assertTrue("Native player regains focus", view.hasFocus()) }
+    }
 
     @Test fun backHidesControlsBeforeClosingVideoAndDpadCanShowThemAgain() {
         screen()
@@ -138,46 +178,66 @@ class PlayerControlsTest {
         }
     }
 
-    private fun screen() {
+    private fun screen(afterLoading: Boolean = false, hostModifier: Modifier = Modifier) {
+        var ready by mutableStateOf(!afterLoading)
         compose.setContent {
             var open by androidx.compose.runtime.remember { mutableStateOf(true) }
             if (open) Dialog(
                 onDismissRequest = { dismissed = true; open = false },
                 properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
             ) {
-                AndroidView(
+                if (!ready) Box(Modifier.fillMaxSize()) else TvPlayerHost(
                     factory = { context ->
                         TvPlayerView(context).apply {
                             view = this
                             player = TestPlayer()
                             applyPlayerAppearance(this, "Тестовое видео")
-                            isFocusable = true
-                            requestFocus()
                             showController()
                         }
                     },
                     onRelease = { it.player?.release(); it.player = null },
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().then(hostModifier),
                 )
             }
         }
         compose.waitForIdle()
-        compose.waitUntil(timeoutMillis = 5_000) { compose.runOnIdle { view.hasWindowFocus() } }
+        if (afterLoading) {
+            // The dialog/Compose owner already holds window focus before the native
+            // player is created, matching asynchronous Ready on the real TV.
+            compose.runOnIdle { ready = true }
+        }
+        compose.waitUntil(timeoutMillis = 5_000) {
+            compose.runOnIdle { ::view.isInitialized && view.hasWindowFocus() && view.hasFocus() }
+        }
     }
 
     /** Seekable video state with no account, network or decoder involved. */
     private class TestPlayer : SimpleBasePlayer(Looper.getMainLooper()) {
+        private var playing = true
+        private var positionMs = 40_000L
         override fun getState(): State = State.Builder()
             .setAvailableCommands(Player.Commands.Builder().addAll(
                 Player.COMMAND_PLAY_PAUSE, Player.COMMAND_GET_CURRENT_MEDIA_ITEM,
                 Player.COMMAND_GET_TIMELINE, Player.COMMAND_SEEK_BACK, Player.COMMAND_SEEK_FORWARD,
             ).build())
             .setPlaybackState(Player.STATE_READY)
+            .setPlayWhenReady(playing, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
             .setPlaylist(listOf(MediaItemData.Builder("test-video")
                 .setIsSeekable(true).setDurationUs(120_000_000).build()))
-            .setContentPositionMs(40_000)
+            .setContentPositionMs(positionMs)
             .setSeekBackIncrementMs(10_000)
             .setSeekForwardIncrementMs(30_000)
             .build()
+
+        override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> {
+            positionMs = currentPosition
+            playing = playWhenReady
+            return Futures.immediateVoidFuture()
+        }
+
+        override fun handleSeek(mediaItemIndex: Int, positionMs: Long, seekCommand: Int): ListenableFuture<*> {
+            this.positionMs = positionMs.coerceIn(0, 120_000)
+            return Futures.immediateVoidFuture()
+        }
     }
 }
