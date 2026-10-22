@@ -56,8 +56,9 @@ internal class TvPlayerView(context: Context) : PlayerView(context) {
     }
 
     /** Bridge only player keys when Compose, rather than a native child, has focus. */
-    internal fun dispatchKeyEventFromHost(event: KeyEvent): Boolean {
+    internal fun dispatchKeyEventFromHost(event: KeyEvent, takeComposeFocus: () -> Unit = {}): Boolean {
         if (hasFocus() || event.keyCode !in PLAYER_KEYS) return false
+        takeComposeFocus()
         requestFocus()
         return dispatchKeyEvent(event)
     }

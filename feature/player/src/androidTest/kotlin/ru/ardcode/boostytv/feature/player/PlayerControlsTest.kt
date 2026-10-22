@@ -105,10 +105,10 @@ class PlayerControlsTest {
     @Test fun timeoutHidesTheWholeOverlayWithoutLeavingTheBottomBar() {
         screen()
         compose.runOnIdle {
-            view.findViewById<PlayerControlView>(MediaR.id.exo_controller).apply {
-                showTimeoutMs = 150
-                show()
-            }
+            // Configure through PlayerView so later focus/layout updates do not
+            // overwrite a timeout set directly on its internal controller.
+            view.controllerShowTimeoutMs = 150
+            view.showController()
         }
         compose.waitUntil(timeoutMillis = 2_000) {
             compose.runOnIdle { !view.isControllerFullyVisible }
@@ -206,8 +206,17 @@ class PlayerControlsTest {
             // player is created, matching asynchronous Ready on the real TV.
             compose.runOnIdle { ready = true }
         }
-        compose.waitUntil(timeoutMillis = 5_000) {
-            compose.runOnIdle { ::view.isInitialized && view.hasWindowFocus() && view.hasFocus() }
+        try {
+            compose.waitUntil(timeoutMillis = 5_000) {
+                compose.runOnIdle { ::view.isInitialized && view.hasWindowFocus() && view.hasFocus() }
+            }
+        } catch (error: Exception) {
+            val detail = compose.runOnIdle {
+                if (!::view.isInitialized) "Player was never created" else
+                    "attached=${view.isAttachedToWindow}, windowFocus=${view.hasWindowFocus()}, " +
+                        "nativeFocus=${view.hasFocus()}, rootFocus=${view.rootView.findFocus()?.javaClass?.name}"
+            }
+            throw AssertionError(detail, error)
         }
     }
 

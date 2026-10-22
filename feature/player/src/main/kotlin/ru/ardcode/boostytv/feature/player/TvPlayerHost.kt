@@ -26,8 +26,11 @@ internal fun TvPlayerHost(
     val focusRequester = remember { FocusRequester() }
 
     Box(modifier
-        .onPreviewKeyEvent { reference.view?.dispatchKeyEventFromHost(it.nativeKeyEvent) ?: false }
-        .focusRequester(focusRequester)
+        .onPreviewKeyEvent {
+            reference.view?.dispatchKeyEventFromHost(it.nativeKeyEvent) {
+                focusRequester.requestFocus()
+            } ?: false
+        }
         .focusable(),
     ) {
         AndroidView(
@@ -37,14 +40,14 @@ internal fun TvPlayerHost(
                 if (reference.view === it) reference.view = null
                 onRelease(it)
             },
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().focusRequester(focusRequester),
         )
     }
 
     LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
         // Let the dialog/AndroidView finish attaching before requesting native focus.
         withFrameNanos { }
+        focusRequester.requestFocus()
         reference.view?.requestFocus()
     }
 }
