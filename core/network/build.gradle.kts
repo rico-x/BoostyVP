@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "ru.ardcode.boostytv.core.network"
+    namespace = "io.github.ricox.boostyvp.core.network"
     compileSdk = 35
 
     defaultConfig {

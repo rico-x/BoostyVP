@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "ru.ardcode.boostytv.feature.pairing"
+    namespace = "io.github.ricox.boostyvp.feature.pairing"
     compileSdk = 35
 
     defaultConfig {

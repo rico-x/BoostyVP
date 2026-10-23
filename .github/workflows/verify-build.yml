@@ -1,0 +1,45 @@
+name: Verify and build BoostyVP
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - uses: android-actions/setup-android@v4
+      - name: Install SDK
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: Verify browser handoff without account or network access
+        run: node build-support/test-pairing-brand.mjs
+      - name: Unit tests and build release and on-device regression tests
+        run: ./gradlew testDebugUnitTest :app:assembleRelease :feature:player:assembleDebugAndroidTest --no-daemon --stacktrace
+      - name: Upload unsigned release and regression test APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: boostyvp
+          path: |
+            app/build/outputs/apk/release/app-release-unsigned.apk
+            feature/player/build/outputs/apk/androidTest/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-test-reports
+          path: '**/build/test-results/testDebugUnitTest/*.xml'
+          if-no-files-found: ignore
+          retention-days: 14

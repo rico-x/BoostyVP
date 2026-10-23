@@ -7,11 +7,11 @@
 -keepclasseswithmembers class kotlinx.serialization.json.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
--keep,includedescriptorclasses class ru.ardcode.boostytv.**$$serializer { *; }
--keepclassmembers class ru.ardcode.boostytv.** {
+-keep,includedescriptorclasses class io.github.ricox.boostyvp.**$$serializer { *; }
+-keepclassmembers class io.github.ricox.boostyvp.** {
     *** Companion;
 }
--keepclasseswithmembers class ru.ardcode.boostytv.** {
+-keepclasseswithmembers class io.github.ricox.boostyvp.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
 

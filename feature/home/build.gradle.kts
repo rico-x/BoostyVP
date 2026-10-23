@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "ru.ardcode.boostytv.feature.home"
+    namespace = "io.github.ricox.boostyvp.feature.home"
     compileSdk = 35
 
     defaultConfig {

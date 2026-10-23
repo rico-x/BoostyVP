@@ -11,7 +11,7 @@
   var send = document.getElementById('send-session');
   var bookmark = document.getElementById('bookmark-url');
   var boosty = document.getElementById('open-boosty');
-  boosty.href = 'https://boosty.to/#boosty-tv=' + encodeURIComponent(form.action);
+  boosty.href = 'https://boosty.to/#boostyvp=' + encodeURIComponent(form.action);
   document.getElementById('tv-address').textContent = location.host;
   document.getElementById('connection-address').textContent = location.origin + '/link';
 
@@ -77,7 +77,7 @@
       bookmark.setSelectionRange(0, bookmark.value.length);
       try {
         if (document.execCommand('copy')) {
-          message('Адрес закладки скопирован. Вставьте его в поле адреса сохранённой закладки Boosty TV.', true);
+          message('Адрес закладки скопирован. Вставьте его в поле адреса сохранённой закладки BoostyVP.', true);
           return;
         }
       } catch (_) {}
@@ -87,7 +87,7 @@
     }
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(bookmark.value).then(function () {
-        message('Адрес закладки скопирован. Вставьте его в поле адреса сохранённой закладки Boosty TV.', true);
+        message('Адрес закладки скопирован. Вставьте его в поле адреса сохранённой закладки BoostyVP.', true);
       }, fallback);
     } else fallback();
   }
@@ -96,7 +96,7 @@
     // Leave the anchor's native URL/title drag payload intact. A click explains
     // how to save it; it must not run the script and pretend it was installed.
     event.preventDefault();
-    message('Чтобы сохранить готовую закладку, перетащите кнопку Boosty TV на панель закладок браузера. После перетаскивания запустите сохранённую закладку для проверки.');
+    message('Чтобы сохранить готовую закладку, перетащите кнопку BoostyVP на панель закладок браузера. После перетаскивания запустите сохранённую закладку для проверки.');
   });
 
   send.addEventListener('click', function () {

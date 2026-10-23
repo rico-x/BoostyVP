@@ -20,7 +20,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "boosty-tv"
+rootProject.name = "BoostyVP"
 
 include(":app")
 include(":core:model")

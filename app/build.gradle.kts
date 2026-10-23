@@ -7,16 +7,16 @@ plugins {
 }
 
 android {
-    namespace = "ru.ardcode.boostytv"
+    namespace = "io.github.ricox.boostyvp"
     compileSdk = 35
 
     defaultConfig {
-        // Separate installation: never overwrite the upstream app or its encrypted login.
-        applicationId = "ru.ardcode.boostytv.focusfix"
+        // Independent fork identity. Never reuse another application's account data.
+        applicationId = "io.github.ricox.boostyvp"
         minSdk = 23
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.02-focusfix.1"
+        versionCode = 4
+        versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

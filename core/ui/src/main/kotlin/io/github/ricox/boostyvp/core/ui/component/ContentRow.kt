@@ -1,0 +1,128 @@
+package io.github.ricox.boostyvp.core.ui.component
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.tv.material3.Border
+import androidx.tv.material3.Button
+import androidx.tv.material3.ButtonDefaults
+import androidx.tv.material3.Icon
+import androidx.tv.material3.LocalContentColor
+import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Text
+import io.github.ricox.boostyvp.core.model.Post
+import io.github.ricox.boostyvp.core.ui.theme.Overscan
+import kotlinx.coroutines.launch
+
+/** Vertical navigation starts each row at its first video; playback restores the selected video. */
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+fun PostRow(
+    title: String,
+    posts: List<Post>,
+    onPostClick: (Post) -> Unit,
+    modifier: Modifier = Modifier,
+    onTitleClick: (() -> Unit)? = null,
+    authorName: String? = null,
+    avatarUrl: String? = null,
+) {
+    if (posts.isEmpty()) return
+    val rowState = rememberLazyListState()
+    val firstPostFocus = remember { FocusRequester() }
+    val scope = rememberCoroutineScope()
+    val colors = MaterialTheme.colorScheme
+    val name = authorName?.takeIf { it.isNotBlank() } ?: title
+    Column(modifier.fillMaxWidth()) {
+        if (onTitleClick != null) {
+            val shape = RoundedCornerShape(12.dp)
+            Button(
+                onClick = onTitleClick,
+                modifier = Modifier.padding(horizontal = Overscan.Horizontal).fillMaxWidth(),
+                contentPadding = PaddingValues(8.dp),
+                shape = ButtonDefaults.shape(shape),
+                colors = ButtonDefaults.colors(containerColor = Color.Transparent, contentColor = colors.onSurface,
+                    focusedContainerColor = colors.surfaceVariant, focusedContentColor = colors.onSurface),
+                border = ButtonDefaults.border(focusedBorder = Border(
+                    BorderStroke(2.dp, colors.primary), shape = shape)),
+                scale = ButtonDefaults.scale(focusedScale = 1.01f),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    AuthorAvatar(name, avatarUrl, size = 44.dp)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(name, style = MaterialTheme.typography.titleLarge,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (title.isNotBlank() && title != name) Text(title,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = LocalContentColor.current.copy(alpha = 0.75f),
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    Text("Все видео", style = MaterialTheme.typography.labelLarge, color = colors.primary)
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null,
+                        tint = colors.primary, modifier = Modifier.size(20.dp))
+                }
+            }
+        } else {
+            Text(title, style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(start = Overscan.Horizontal, bottom = 8.dp))
+        }
+        LazyRow(
+            state = rowState,
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            contentPadding = PaddingValues(start = Overscan.Horizontal, end = Overscan.Horizontal,
+                top = 16.dp, bottom = 16.dp),
+            modifier = Modifier
+                .focusProperties {
+                    enter = { direction ->
+                        if (direction == FocusDirection.Down || direction == FocusDirection.Up) {
+                            scope.launch {
+                                // The first card may have been recycled after horizontal scrolling.
+                                rowState.scrollToItem(0)
+                                withFrameNanos { }
+                                firstPostFocus.requestFocus()
+                            }
+                            FocusRequester.Cancel
+                        } else {
+                            // Explicit focus restoration from the player keeps the selected card.
+                            FocusRequester.Default
+                        }
+                    }
+                }
+                .focusGroup(),
+        ) {
+            itemsIndexed(items = posts, key = { _, post -> post.id }) { index, post ->
+                PostCard(
+                    post,
+                    onClick = { onPostClick(post) },
+                    modifier = if (index == 0) Modifier.focusRequester(firstPostFocus) else Modifier,
+                )
+            }
+        }
+    }
+}

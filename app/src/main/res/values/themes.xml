@@ -3,12 +3,12 @@
     <!-- A plain dark theme. Compose supplies the real styling; this only needs
          to avoid a white flash between process start and first frame, which on
          a TV in a dark room is genuinely unpleasant. -->
-    <style name="Theme.BoostyTv" parent="android:Theme.Material.NoActionBar">
+    <style name="Theme.BoostyVP" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/window_background</item>
         <item name="android:colorBackground">@color/window_background</item>
-        <item name="android:colorAccent">@color/boosty_accent</item>
-        <item name="android:textColorPrimary">@color/boosty_text</item>
-        <item name="android:textColorSecondary">@color/boosty_text_secondary</item>
+        <item name="android:colorAccent">@color/boostyvp_accent</item>
+        <item name="android:textColorPrimary">@color/boostyvp_text</item>
+        <item name="android:textColorSecondary">@color/boostyvp_text_secondary</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowActionBar">false</item>
     </style>

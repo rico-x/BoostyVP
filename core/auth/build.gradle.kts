@@ -24,7 +24,7 @@ val pairingPort = providers.gradleProperty("pairingPort")
 require(pairingPort in 0..65535) { "pairingPort must be 0 (automatic) or a TCP port" }
 
 android {
-    namespace = "ru.ardcode.boostytv.core.auth"
+    namespace = "io.github.ricox.boostyvp.core.auth"
     compileSdk = 35
 
     defaultConfig {

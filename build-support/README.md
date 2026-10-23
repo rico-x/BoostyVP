@@ -3,14 +3,20 @@
 Run from the repository root. The image contains JDK 21 and the official Android
 SDK; Gradle's wrapper pins Gradle 8.13. No signing keys or account data are needed.
 
+With Node.js 20+ on the host, check the renamed browser handoff offline:
+
+```sh
+node build-support/test-pairing-brand.mjs
+```
+
 ```sh
 docker build --platform linux/amd64 -f build-support/Dockerfile \
-  -t boosty-tv-focusfix-builder:reproducible build-support
+  -t boostyvp-builder:reproducible build-support
 
 docker run --rm --platform linux/amd64 --cpus=4 --memory=8g \
   --mount type=bind,source="$PWD",target=/workspace \
-  --mount type=volume,source=boosty-focusfix-gradle-cache,target=/gradle \
-  boosty-tv-focusfix-builder:reproducible \
+  --mount type=volume,source=boostyvp-gradle-cache,target=/gradle \
+  boostyvp-builder:reproducible \
   ./gradlew testDebugUnitTest :app:assembleRelease \
     :feature:player:assembleDebugAndroidTest \
     --max-workers=2 --no-watch-fs --console=plain
