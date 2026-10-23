@@ -1,5 +1,6 @@
 package io.github.ricox.boostyvp.feature.home
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,21 +10,28 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.PagingData
+import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.ricox.boostyvp.core.model.Post
 import io.github.ricox.boostyvp.core.ui.component.EmptyState
 import io.github.ricox.boostyvp.core.ui.component.ErrorState
@@ -36,6 +44,8 @@ import io.github.ricox.boostyvp.core.ui.player.PlayerPreferences
 import io.github.ricox.boostyvp.core.ui.player.PlayerSettingsDialog
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
 @Composable
 fun HomeScreen(
@@ -45,6 +55,7 @@ fun HomeScreen(
     signingOut: Boolean = false,
     signOutError: String? = null,
     viewModel: HomeViewModel = hiltViewModel(),
+    newFeedViewModel: NewFeedViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showSignOut by rememberSaveable { mutableStateOf(false) }
@@ -53,7 +64,8 @@ fun HomeScreen(
     var options by remember { mutableStateOf(preferences.load()) }
     var showPlayerSettings by rememberSaveable { mutableStateOf(false) }
     HomeLayout(state, onPostClick, onBlogClick, { showSignOut = true }, viewModel::refresh,
-        onPlayerSettings = { options = preferences.load(); showPlayerSettings = true })
+        onPlayerSettings = { options = preferences.load(); showPlayerSettings = true },
+        newPosts = newFeedViewModel.posts)
     if (showPlayerSettings) PlayerSettingsDialog(options, onChange = {
         options = it
         preferences.save(it)
@@ -64,6 +76,7 @@ fun HomeScreen(
     )
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun HomeLayout(
     state: HomeUiState,
@@ -72,24 +85,66 @@ fun HomeLayout(
     onSignOut: () -> Unit,
     onRefresh: () -> Unit,
     onPlayerSettings: () -> Unit = {},
+    newPosts: Flow<PagingData<Post>> = emptyFlow(),
 ) {
     val menuFocus = remember { FocusRequester() }
     val contentFocus = remember { FocusRequester() }
-    val hasContent = (state as? HomeUiState.Content)?.rows?.any { it.posts.isNotEmpty() } == true
+    var section by rememberSaveable { mutableStateOf(HomeSection.Subscriptions) }
+    var focusMenu by remember { mutableStateOf(false) }
+    // Survives section switches and the player dialog, like the author grid.
+    val newGridState = rememberLazyGridState()
+    // Collected only while "Новое" is shown: Home itself never requests the feed.
+    val newItems = if (section == HomeSection.New) newPosts.collectAsLazyPagingItems() else null
+    val hasContent = if (newItems != null) newItems.itemCount > 0
+        else (state as? HomeUiState.Content)?.rows?.any { it.posts.isNotEmpty() } == true
+
+    // Back from "Новое" returns to the subscriptions, the screen Back exits from.
+    BackHandler(enabled = section != HomeSection.Subscriptions) {
+        section = HomeSection.Subscriptions
+        focusMenu = true
+    }
+    // After recomposition [menuFocus] is attached to the newly selected button.
+    LaunchedEffect(section, focusMenu) {
+        if (focusMenu) {
+            focusMenu = false
+            menuFocus.requestFocus()
+        }
+    }
+
     ScreenBackdrop {
         Row(Modifier.fillMaxSize()) {
-            HomeSidebar(menuFocus, contentFocus, hasContent, onRefresh, onPlayerSettings, onSignOut)
+            HomeSidebar(
+                section = section,
+                onSectionClick = { target ->
+                    if (target != section) section = target
+                    else if (hasContent) contentFocus.requestFocus()
+                },
+                menuFocus = menuFocus, contentFocus = contentFocus, hasContent = hasContent,
+                onRefresh = { if (newItems != null) newItems.refresh() else onRefresh() },
+                onSettings = onPlayerSettings, onSignOut = onSignOut,
+            )
             Column(Modifier.weight(1f)) {
                 Column(Modifier.padding(start = 24.dp, end = Overscan.Horizontal,
                     top = Overscan.Vertical, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Ваши подписки", style = MaterialTheme.typography.headlineSmall)
-                    Text("Новые публикации по авторам", style = MaterialTheme.typography.bodySmall,
+                    val (title, subtitle) = when (section) {
+                        HomeSection.Subscriptions -> "Ваши подписки" to "Новые публикации по авторам"
+                        HomeSection.New -> "Новое" to "Свежие публикации всех подписок по дате"
+                    }
+                    Text(title, style = MaterialTheme.typography.headlineSmall)
+                    Text(subtitle, style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 // This focus target stays attached even after the first author
-                // heading has been recycled by LazyColumn.
-                Box(Modifier.weight(1f).focusRequester(contentFocus).focusGroup()) {
-                    when (state) {
+                // heading has been recycled by LazyColumn. Leaving it to the left
+                // from any card returns to the selected menu item.
+                Box(Modifier.weight(1f).focusRequester(contentFocus)
+                    .focusProperties {
+                        exit = { if (it == FocusDirection.Left) menuFocus else FocusRequester.Default }
+                    }
+                    .focusGroup()) {
+                    if (newItems != null) {
+                        NewFeedContent(newItems, newGridState, onPostClick)
+                    } else when (state) {
                         is HomeUiState.Loading -> LoadingState()
                         is HomeUiState.Error -> ErrorState(detail = state.message, onRetry = onRefresh)
                         is HomeUiState.NoSubscriptions -> EmptyState(

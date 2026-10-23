@@ -5,6 +5,7 @@ import io.github.ricox.boostyvp.core.model.Page
 import io.github.ricox.boostyvp.core.model.Post
 import io.github.ricox.boostyvp.core.model.Subscription
 import io.github.ricox.boostyvp.core.network.dto.BlogDto
+import io.github.ricox.boostyvp.core.network.dto.FeedResponseDto
 import io.github.ricox.boostyvp.core.network.dto.PagedResponse
 import io.github.ricox.boostyvp.core.network.dto.PostDto
 import io.github.ricox.boostyvp.core.network.dto.UserSubscriptionDto
@@ -35,13 +36,16 @@ fun UserSubscriptionDto.toDomainOrNull(): Subscription? {
 
 /**
  * @param fallbackBlogUrl per-blog post endpoints omit the blog object, so the
- *   caller supplies the slug it already knows.
+ *   caller supplies the slug it already knows. The feed knows none and relies
+ *   on the author's own blog.
  */
 fun PostDto.toDomain(json: Json, fallbackBlogUrl: String = ""): Post = Post(
     id = id,
     intId = intId,
     title = title,
-    blogUrl = blog?.blogUrl?.takeIf { it.isNotBlank() } ?: fallbackBlogUrl,
+    blogUrl = blog?.blogUrl?.takeIf { it.isNotBlank() }
+        ?: fallbackBlogUrl.takeIf { it.isNotBlank() }
+        ?: user?.blogUrl.orEmpty(),
     blogTitle = blog?.title?.takeIf { it.isNotBlank() }
         ?: blog?.owner?.name
         ?: user?.name.orEmpty(),
@@ -66,6 +70,9 @@ fun PagedResponse<PostDto>.toPostPage(json: Json, fallbackBlogUrl: String = ""):
         nextCursor = extra.offset?.takeIf { !extra.isLast && it.isNotBlank() },
         isLast = extra.isLast,
     )
+
+fun FeedResponseDto.toPostPage(json: Json): Page<Post> =
+    PagedResponse(data.posts, extra).toPostPage(json)
 
 fun PagedResponse<UserSubscriptionDto>.toSubscriptionPage(): Page<Subscription> =
     Page(

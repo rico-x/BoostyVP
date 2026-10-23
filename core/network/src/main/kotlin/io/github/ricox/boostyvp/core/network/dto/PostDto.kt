@@ -20,7 +20,7 @@ data class PostDto(
     val isBlocked: Boolean = false,
     val signedQuery: String? = null,
     val user: OwnerDto? = null,
-    /** Present on feed responses, absent on per-blog responses. */
+    /** Absent on per-blog and feed responses alike; the feed names the blog in [user]. */
     val blog: BlogDto? = null,
     val data: List<ContentBlockDto> = emptyList(),
     val teaser: List<ContentBlockDto> = emptyList(),

@@ -16,8 +16,12 @@ class DefaultFeedRepository @Inject constructor(
     private val api: BoostyApi,
     private val json: Json,
 ) : FeedRepository {
+    /** Feed posts name their blog through the author; one without it cannot be opened, so it is dropped. */
     override suspend fun feedPage(cursor: String?): Page<Post> =
-        publicationPage(cursor) { next -> api.getFeed(offset = next).toPostPage(json) }
+        publicationPage(cursor) { next ->
+            val page = api.getFeed(offset = next).toPostPage(json)
+            page.copy(items = page.items.filter { it.blogUrl.isNotBlank() })
+        }
 
     override suspend fun subscriptions(limit: Int): List<Subscription> {
         require(limit > 0)

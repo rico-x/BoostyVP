@@ -2,6 +2,7 @@ package io.github.ricox.boostyvp.core.network
 
 import io.github.ricox.boostyvp.core.network.dto.BlogDto
 import io.github.ricox.boostyvp.core.network.dto.CommentDto
+import io.github.ricox.boostyvp.core.network.dto.FeedResponseDto
 import io.github.ricox.boostyvp.core.network.dto.PagedResponse
 import io.github.ricox.boostyvp.core.network.dto.PostDto
 import io.github.ricox.boostyvp.core.network.dto.SubscriptionLevelDto
@@ -78,13 +79,17 @@ interface BoostyApi {
         @Query("with_follow") withFollow: Boolean = true,
     ): PagedResponse<UserSubscriptionDto>
 
-    /** VERIFIED to exist -- returns 401 without a token. The subscriptions feed. */
+    /**
+     * VERIFIED on a signed-in TV 2026-10-23 -- the subscriptions feed, newest first.
+     * Unlike the per-blog list, `data` is an object: posts are in `data.posts`
+     * and name their blog only through `user.blogUrl`.
+     */
     @GET("v1/feed/post/")
     suspend fun getFeed(
         @Query("limit") limit: Int = DEFAULT_PAGE_SIZE,
         @Query("offset") offset: String? = null,
         @Query("only_allowed") onlyAllowed: Boolean = true,
-    ): PagedResponse<PostDto>
+    ): FeedResponseDto
 
     /** Verified against Boosty's own web client on 2026-10-19. */
     @FormUrlEncoded

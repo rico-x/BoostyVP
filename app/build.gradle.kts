@@ -94,6 +94,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.uiautomator)
     androidTestImplementation(libs.androidx.media3.ui)
     androidTestImplementation(libs.androidx.media3.common)
+    androidTestImplementation(libs.androidx.paging.compose)
     androidTestImplementation(libs.okhttp.core)
     androidTestImplementation(libs.retrofit.core)
     testImplementation(libs.junit)

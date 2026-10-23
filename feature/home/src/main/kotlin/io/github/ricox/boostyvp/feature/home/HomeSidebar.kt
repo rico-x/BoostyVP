@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -39,8 +40,14 @@ import androidx.tv.material3.Text
 import io.github.ricox.boostyvp.core.ui.component.BoostyVPBrand
 import io.github.ricox.boostyvp.core.ui.theme.Overscan
 
+/** Content areas of Home, switched from the sidebar. */
+enum class HomeSection { Subscriptions, New }
+
+/** [menuFocus] follows the selected section, so Left from content returns to it. */
 @Composable
 internal fun HomeSidebar(
+    section: HomeSection,
+    onSectionClick: (HomeSection) -> Unit,
     menuFocus: FocusRequester,
     contentFocus: FocusRequester,
     hasContent: Boolean,
@@ -57,9 +64,16 @@ internal fun HomeSidebar(
     ) {
         BoostyVPBrand(compact = true)
         Spacer(Modifier.height(24.dp))
-        SidebarButton("Подписки", Icons.Default.Home, {
-            if (hasContent) contentFocus.requestFocus()
-        }, destination.focusRequester(menuFocus).testTag("sidebar_subscriptions"), isSelected = true)
+        listOf(
+            Triple(HomeSection.Subscriptions, "Подписки", Icons.Default.Home),
+            Triple(HomeSection.New, "Новое", Icons.Default.DateRange),
+        ).forEach { (target, label, icon) ->
+            val selected = target == section
+            SidebarButton(label, icon, { onSectionClick(target) },
+                destination.then(if (selected) Modifier.focusRequester(menuFocus) else Modifier)
+                    .testTag(if (target == HomeSection.New) "sidebar_new" else "sidebar_subscriptions"),
+                isSelected = selected)
+        }
         SidebarButton("Обновить", Icons.Default.Refresh, onRefresh, destination)
         SidebarButton("Плеер", Icons.Default.Settings, onSettings, destination)
         Spacer(Modifier.weight(1f))

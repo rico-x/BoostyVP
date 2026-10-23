@@ -15,6 +15,18 @@ data class PagedResponse<T>(
     val extra: PagingExtraDto = PagingExtraDto(),
 )
 
+/** The subscriptions feed wraps its page in an object; only the posts are used. */
+@Serializable
+data class FeedResponseDto(
+    val data: FeedDataDto = FeedDataDto(),
+    val extra: PagingExtraDto = PagingExtraDto(),
+)
+
+@Serializable
+data class FeedDataDto(
+    val posts: List<PostDto> = emptyList(),
+)
+
 @Serializable
 data class PagingExtraDto(
     /**

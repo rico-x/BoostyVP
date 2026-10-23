@@ -20,6 +20,8 @@ data class BlogDto(
 data class OwnerDto(
     val id: Long = 0,
     val name: String = "",
+    /** Set on a post's author; the feed's only link from a post to its blog. */
+    val blogUrl: String = "",
     val avatarUrl: String? = null,
     val hasAvatar: Boolean = false,
 )
