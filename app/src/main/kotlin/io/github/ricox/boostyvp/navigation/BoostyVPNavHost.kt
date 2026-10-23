@@ -38,11 +38,11 @@ object Routes {
     const val PAIRING_PHONE = "auth/phone"
     const val HOME = "home"
     const val BLOG = "blog/{blogUrl}"
-    const val PLAYER = "player/{blogUrl}/{postId}"
+    const val PLAYER = "player/{blogUrl}/{postId}?fromStart={fromStart}"
 
     fun blog(blogUrl: String) = "blog/${blogUrl.encodeArg()}"
-    fun player(blogUrl: String, postId: String) =
-        "player/${blogUrl.encodeArg()}/${postId.encodeArg()}"
+    fun player(blogUrl: String, postId: String, fromStart: Boolean = false) =
+        "player/${blogUrl.encodeArg()}/${postId.encodeArg()}" + if (fromStart) "?fromStart=true" else ""
 }
 
 /** Blog slugs are user-controlled and can contain characters that break a route. */
@@ -115,6 +115,9 @@ fun BoostyVPNavHost(
                     onPostClick = { post ->
                         navController.navigate(Routes.player(post.blogUrl, post.id))
                     },
+                    onPostFromStart = { post ->
+                        navController.navigate(Routes.player(post.blogUrl, post.id, fromStart = true))
+                    },
                     onBlogClick = { blogUrl ->
                         navController.navigate(Routes.blog(blogUrl))
                     },
@@ -132,6 +135,9 @@ fun BoostyVPNavHost(
                     onPostClick = { post ->
                         navController.navigate(Routes.player(post.blogUrl, post.id))
                     },
+                    onPostFromStart = { post ->
+                        navController.navigate(Routes.player(post.blogUrl, post.id, fromStart = true))
+                    },
                 )
             }
 
@@ -144,8 +150,8 @@ fun BoostyVPNavHost(
 // scroll offsets and focus nodes. Content is replaceable for navigation tests.
 internal fun NavGraphBuilder.playerDestination(
     onClose: () -> Unit = {},
-    content: @Composable (String, String) -> Unit = { blog, post ->
-        PlayerScreen(blogUrl = blog, postId = post, onClose = onClose)
+    content: @Composable (String, String, Boolean) -> Unit = { blog, post, fromStart ->
+        PlayerScreen(blogUrl = blog, postId = post, onClose = onClose, startFromBeginning = fromStart)
     },
 ) {
     dialog(
@@ -158,12 +164,14 @@ internal fun NavGraphBuilder.playerDestination(
         arguments = listOf(
             navArgument("blogUrl") { type = NavType.StringType },
             navArgument("postId") { type = NavType.StringType },
+            navArgument("fromStart") { type = NavType.BoolType; defaultValue = false },
         ),
     ) { entry ->
         val blogUrl = entry.arguments?.getString("blogUrl").orEmpty()
         val postId = entry.arguments?.getString("postId").orEmpty()
+        val fromStart = entry.arguments?.getBoolean("fromStart") ?: false
         Box(Modifier.fillMaxSize().background(Color.Black)) {
-            content(blogUrl, postId)
+            content(blogUrl, postId, fromStart)
         }
     }
 }

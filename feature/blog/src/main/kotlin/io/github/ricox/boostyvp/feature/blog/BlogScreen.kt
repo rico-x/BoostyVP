@@ -12,6 +12,9 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -31,6 +34,7 @@ import androidx.tv.material3.Text
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import io.github.ricox.boostyvp.core.ui.component.PostCard
+import io.github.ricox.boostyvp.core.ui.component.PostActionsDialog
 import io.github.ricox.boostyvp.core.ui.component.focusedTitleSpace
 import io.github.ricox.boostyvp.core.ui.theme.Overscan
 
@@ -40,7 +44,9 @@ fun BlogScreen(
     onPostClick: (Post) -> Unit,
     onBack: () -> Unit,
     viewModel: BlogViewModel = hiltViewModel(),
+    onPostFromStart: (Post) -> Unit = onPostClick,
 ) {
+    var actionPost by remember { mutableStateOf<Post?>(null) }
     LaunchedEffect(blogUrl) { viewModel.load(blogUrl) }
 
     val blog by viewModel.blog.collectAsStateWithLifecycle()
@@ -117,7 +123,8 @@ fun BlogScreen(
             ) { index ->
                 val post = posts[index]
                 if (post != null) {
-                    PostCard(post = post, onClick = { onPostClick(post) }, inAuthorRow = true)
+                    PostCard(post = post, onClick = { onPostClick(post) }, inAuthorRow = true,
+                        onLongClick = { actionPost = post })
                 }
             }
             if (posts.loadState.append is LoadState.Error) {
@@ -130,5 +137,9 @@ fun BlogScreen(
                 }
             }
         }
+    }
+    actionPost?.let { post ->
+        PostActionsDialog(post, onOpen = { onPostClick(post) }, onDismiss = { actionPost = null },
+            onFromStart = if (post.isPlayable) ({ onPostFromStart(post) }) else null)
     }
 }

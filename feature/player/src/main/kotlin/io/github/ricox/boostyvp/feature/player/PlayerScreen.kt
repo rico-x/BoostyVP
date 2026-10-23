@@ -9,6 +9,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -37,11 +38,17 @@ fun PlayerScreen(
     postId: String,
     onClose: () -> Unit = {},
     viewModel: PlayerViewModel = hiltViewModel(),
+    startFromBeginning: Boolean = false,
 ) {
     // Keep the inactivity clock outside Ready/Loading: autoplay and a link refresh
     // replace the player view but are not remote-control interaction.
     val interaction = remember { PlaybackInteraction(SystemClock.uptimeMillis()) }
-    LaunchedEffect(blogUrl, postId) { viewModel.load(blogUrl, postId) }
+    var requestStart by rememberSaveable(blogUrl, postId, startFromBeginning) { mutableStateOf(startFromBeginning) }
+    LaunchedEffect(blogUrl, postId, startFromBeginning) {
+        viewModel.load(blogUrl, postId, if (requestStart) 0L else null)
+        // Process recreation resumes normally; "Смотреть сначала" is a one-time intent.
+        requestStart = false
+    }
 
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -129,6 +136,11 @@ private fun VideoSurface(
 
             override fun onPlaybackStateChanged(playbackState: Int) {
                 trackStall()
+                if (playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED) {
+                    // History starts once media is ready and retains its final checkpoint,
+                    // independently of the resume point removed when a video finishes.
+                    progressForPlayer(player.currentPosition.coerceAtLeast(0), player.duration.coerceAtLeast(0))
+                }
                 playbackEnded = playbackState == Player.STATE_ENDED
                 if (playbackEnded) endedForPlayer()
             }

@@ -222,4 +222,20 @@ class PlayerViewModelTest {
         advanceUntilIdle()
         assertEquals(null, model.nextVideo(model.state.value as PlayerUiState.Ready))
     }
+
+    @Test fun `watch from start overrides a resume point and survives a failed request`() = runTest(dispatcher) {
+        var attempts = 0
+        coEvery { blogs.post("blog", "a") } answers {
+            if (attempts++ == 0) error("Offline") else post("a")
+        }
+        coEvery { progress.resumePositionMs("a", "video-a") } returns 40_000L
+        val model = PlayerViewModel(blogs, progress)
+        model.load("blog", "a", resumeAtMs = 0)
+        advanceUntilIdle()
+        assertEquals(true, model.state.value is PlayerUiState.Failed)
+        model.retry()
+        advanceUntilIdle()
+        assertEquals(0L, (model.state.value as PlayerUiState.Ready).startPositionMs)
+        coVerify(exactly = 0) { progress.clear(any(), any()) }
+    }
 }

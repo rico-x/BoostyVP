@@ -60,11 +60,13 @@ class PlayerViewModel(
     private var loadJob: Job? = null
     /** The post now in the player; [refresh] and [playNext] work from it. */
     private var current: Pair<String, String>? = null
+    private var requestedResumeMs: Long? = null
     private var lastRefreshAt: Long? = null
 
     /** @param resumeAtMs continue here instead of the saved resume point, e.g. after [refresh]. */
     fun load(blogUrl: String, postId: String, resumeAtMs: Long? = null) {
         current = blogUrl to postId
+        requestedResumeMs = resumeAtMs
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             _state.value = PlayerUiState.Loading
@@ -126,7 +128,7 @@ class PlayerViewModel(
     /** After a failed load: the post in the player, which may already be a next video. */
     fun retry() {
         val (blogUrl, postId) = current ?: return
-        load(blogUrl, postId)
+        load(blogUrl, postId, requestedResumeMs)
     }
 
     private suspend fun resolve(blogUrl: String, postId: String, resumeAtMs: Long?): PlayerUiState {

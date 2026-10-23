@@ -28,6 +28,7 @@ internal fun NewFeedContent(
     posts: LazyPagingItems<Post>,
     gridState: LazyGridState,
     onPostClick: (Post) -> Unit,
+    onPostLongClick: (Post) -> Unit,
 ) {
     val refresh = posts.loadState.refresh
     val density = LocalInterfaceOptions.current.density
@@ -66,7 +67,7 @@ internal fun NewFeedContent(
             key = { index -> posts.peek(index)?.id ?: "placeholder_$index" },
         ) { index ->
             val post = posts[index]
-            if (post != null) PostCard(post = post, onClick = { onPostClick(post) })
+            if (post != null) PostCard(post = post, onClick = { onPostClick(post) }, onLongClick = { onPostLongClick(post) })
         }
         if (posts.loadState.append is LoadState.Error) {
             item(key = "new_append_error", span = { GridItemSpan(maxLineSpan) }) {

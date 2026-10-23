@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
@@ -48,7 +49,7 @@ import io.github.ricox.boostyvp.core.ui.appearance.BrowseDimensions
 import io.github.ricox.boostyvp.core.ui.theme.Overscan
 
 /** Content areas of Home, switched from the sidebar. */
-enum class HomeSection { Subscriptions, New }
+enum class HomeSection { Subscriptions, New, History }
 
 /** [menuFocus] follows the selected section, so Left from content returns to it. */
 @Composable
@@ -83,11 +84,16 @@ internal fun HomeSidebar(
         listOf(
             Triple(HomeSection.Subscriptions, "Подписки", Icons.Default.Home),
             Triple(HomeSection.New, "Новое", Icons.Default.DateRange),
+            Triple(HomeSection.History, "История", Icons.AutoMirrored.Filled.List),
         ).forEach { (target, label, icon) ->
             val selected = target == section
             SidebarButton(label, icon, { onSectionClick(target) },
                 destination.then(if (selected) Modifier.focusRequester(menuFocus) else Modifier)
-                    .testTag(if (target == HomeSection.New) "sidebar_new" else "sidebar_subscriptions"),
+                    .testTag(when (target) {
+                        HomeSection.Subscriptions -> "sidebar_subscriptions"
+                        HomeSection.New -> "sidebar_new"
+                        HomeSection.History -> "sidebar_history"
+                    }),
                 isSelected = selected, expanded = expanded)
         }
         SidebarButton("Обновить", Icons.Default.Refresh, onRefresh, destination, expanded = expanded)

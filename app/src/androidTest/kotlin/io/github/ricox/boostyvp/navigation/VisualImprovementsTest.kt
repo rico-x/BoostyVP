@@ -266,7 +266,7 @@ class VisualImprovementsTest {
                     newPosts = newFlow, onInterfaceSettings = { settingsOpen = true })
                 if (settingsOpen) InterfaceSettingsDialog { settingsOpen = false }
             }
-            playerDestination { _, _ ->
+            playerDestination { _, _, _ ->
                 Box(Modifier.fillMaxSize().testTag("visual_test_player")) {
                     AndroidView(factory = { context -> PlayerView(context).apply { isFocusable = true; requestFocus() } },
                         modifier = Modifier.fillMaxSize())

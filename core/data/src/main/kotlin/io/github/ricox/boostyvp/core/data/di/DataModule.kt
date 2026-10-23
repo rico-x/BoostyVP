@@ -13,6 +13,8 @@ import io.github.ricox.boostyvp.core.data.account.BoostyCurrentAccount
 import io.github.ricox.boostyvp.core.data.account.PreferencesAccountIdCache
 import io.github.ricox.boostyvp.core.data.library.LibraryDatabase
 import io.github.ricox.boostyvp.core.data.library.PlaybackProgressDao
+import io.github.ricox.boostyvp.core.data.library.WatchHistoryDao
+import io.github.ricox.boostyvp.core.data.repository.RoomWatchHistoryRepository
 import io.github.ricox.boostyvp.core.data.repository.DefaultBlogRepository
 import io.github.ricox.boostyvp.core.data.repository.DefaultFeedRepository
 import io.github.ricox.boostyvp.core.data.repository.DefaultPostCommentsRepository
@@ -24,6 +26,7 @@ import io.github.ricox.boostyvp.core.domain.repository.PostCommentsRepository
 import io.github.ricox.boostyvp.core.domain.repository.BlogRepository
 import io.github.ricox.boostyvp.core.domain.repository.FeedRepository
 import io.github.ricox.boostyvp.core.domain.repository.PlaybackProgressRepository
+import io.github.ricox.boostyvp.core.domain.repository.WatchHistoryRepository
 import javax.inject.Singleton
 
 @Module
@@ -42,6 +45,9 @@ abstract class DataModule {
     abstract fun bindPlaybackProgress(impl: RoomPlaybackProgressRepository): PlaybackProgressRepository
 
     @Binds
+    abstract fun bindWatchHistory(impl: RoomWatchHistoryRepository): WatchHistoryRepository
+
+    @Binds
     abstract fun bindCurrentAccount(impl: BoostyCurrentAccount): CurrentAccount
 
     @Binds
@@ -57,8 +63,12 @@ object LibraryModule {
     @Provides
     @Singleton
     fun provideLibraryDatabase(@ApplicationContext context: Context): LibraryDatabase =
-        Room.databaseBuilder(context, LibraryDatabase::class.java, LibraryDatabase.NAME).build()
+        Room.databaseBuilder(context, LibraryDatabase::class.java, LibraryDatabase.NAME)
+            .addMigrations(LibraryDatabase.MIGRATION_1_2).build()
 
     @Provides
     fun providePlaybackProgressDao(database: LibraryDatabase): PlaybackProgressDao = database.playbackProgress()
+
+    @Provides
+    fun provideWatchHistoryDao(database: LibraryDatabase): WatchHistoryDao = database.watchHistory()
 }

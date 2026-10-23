@@ -68,7 +68,7 @@ class PlayerReturnTest {
             controller = nav
             NavHost(nav, startDestination = Routes.HOME) {
                 composable(Routes.HOME) { Box(Modifier.fillMaxSize()) }
-                playerDestination { actualBlog, actualPost -> received = actualBlog to actualPost }
+                playerDestination { actualBlog, actualPost, _ -> received = actualBlog to actualPost }
             }
         }
         compose.runOnIdle { controller.navigate(Routes.player(blog, post)) }
@@ -148,7 +148,7 @@ class PlayerReturnTest {
                         }
                         if (isGrid) Grid(open) else Rows(open)
                     }
-                    playerDestination { _, _ ->
+                    playerDestination { _, _, _ ->
                         Box(Modifier.fillMaxSize().testTag("native_player")) {
                             AndroidView(
                                 factory = { context ->

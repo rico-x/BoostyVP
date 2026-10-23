@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
@@ -30,6 +31,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -47,6 +49,7 @@ import io.github.ricox.boostyvp.core.ui.component.EmptyState
 import io.github.ricox.boostyvp.core.ui.component.ErrorState
 import io.github.ricox.boostyvp.core.ui.component.LoadingState
 import io.github.ricox.boostyvp.core.ui.component.PostRow
+import io.github.ricox.boostyvp.core.ui.component.PostActionsDialog
 import io.github.ricox.boostyvp.core.ui.component.focusedTitleSpace
 import io.github.ricox.boostyvp.core.ui.component.ScreenBackdrop
 import io.github.ricox.boostyvp.core.ui.component.SignOutDialog
@@ -57,6 +60,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
 
 @Composable
 fun HomeScreen(
@@ -67,6 +71,8 @@ fun HomeScreen(
     signOutError: String? = null,
     viewModel: HomeViewModel = hiltViewModel(),
     newFeedViewModel: NewFeedViewModel = hiltViewModel(),
+    historyViewModel: HistoryViewModel = hiltViewModel(),
+    onPostFromStart: (Post) -> Unit = onPostClick,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val continueWatching by viewModel.continueWatching.collectAsStateWithLifecycle()
@@ -79,7 +85,9 @@ fun HomeScreen(
     HomeLayout(state, onPostClick, onBlogClick, { showSignOut = true }, viewModel::refresh,
         onPlayerSettings = { options = preferences.load(); showPlayerSettings = true },
         onInterfaceSettings = { showInterfaceSettings = true },
-        newPosts = newFeedViewModel.posts, continueWatching = continueWatching)
+        newPosts = newFeedViewModel.posts, continueWatching = continueWatching,
+        history = historyViewModel.state, onHistoryRetry = historyViewModel::retry,
+        onRemoveHistory = { historyViewModel.remove(it.id) }, onPostFromStart = onPostFromStart)
     if (showInterfaceSettings) InterfaceSettingsDialog(onDismiss = { showInterfaceSettings = false })
     if (showPlayerSettings) PlayerSettingsDialog(options, onChange = {
         options = it
@@ -103,6 +111,10 @@ fun HomeLayout(
     newPosts: Flow<PagingData<Post>> = emptyFlow(),
     continueWatching: List<Post> = emptyList(),
     onInterfaceSettings: () -> Unit = {},
+    history: Flow<HistoryUiState> = flowOf(HistoryUiState.Content(emptyList())),
+    onHistoryRetry: () -> Unit = {},
+    onRemoveHistory: (suspend (Post) -> Boolean)? = null,
+    onPostFromStart: (Post) -> Unit = onPostClick,
 ) {
     val menuFocus = remember { FocusRequester() }
     val contentFocus = remember { FocusRequester() }
@@ -112,28 +124,36 @@ fun HomeLayout(
     val interfaceOptions = LocalInterfaceOptions.current
     // Survives section switches and the player dialog, like the author grid.
     val newGridState = rememberLazyGridState()
+    val historyGridState = rememberLazyGridState()
+    val historyState = if (section == HomeSection.History)
+        history.collectAsStateWithLifecycle(initialValue = HistoryUiState.Loading).value else HistoryUiState.Loading
+    var actionPost by remember { mutableStateOf<Post?>(null) }
+    val windowFocused = LocalWindowInfo.current.isWindowFocused
     // Collected only while "Новое" is shown: Home itself never requests the feed.
     val newItems = if (section == HomeSection.New) newPosts.collectAsLazyPagingItems() else null
-    val hasContent = if (newItems != null) newItems.itemCount > 0
+    val hasContent = if (section == HomeSection.History) historyState is HistoryUiState.Failed ||
+        (historyState as? HistoryUiState.Content)?.entries?.isNotEmpty() == true
+        else if (newItems != null) newItems.itemCount > 0
         else (state as? HomeUiState.Content)?.let { content ->
             continueWatching.isNotEmpty() || content.rows.any { it.posts.isNotEmpty() }
         } == true
 
     // Back from "Новое" returns to the subscriptions, the screen Back exits from.
-    BackHandler(enabled = section != HomeSection.Subscriptions) {
+    BackHandler(enabled = section != HomeSection.Subscriptions && actionPost == null) {
         section = HomeSection.Subscriptions
         focusMenu = true
     }
     // After recomposition [menuFocus] is attached to the newly selected button.
-    LaunchedEffect(section, focusMenu) {
-        if (focusMenu) {
+    LaunchedEffect(section, focusMenu, windowFocused, actionPost) {
+        if (focusMenu && windowFocused && actionPost == null) {
+            withFrameNanos { }
             focusMenu = false
             menuFocus.requestFocus()
         }
     }
 
     ScreenBackdrop {
-        Box(Modifier.fillMaxSize().padding(bottom = if (interfaceOptions.fullTitle) focusedTitleSpace() else 0.dp)) {
+        Box(Modifier.fillMaxSize()) {
           Box(Modifier.zIndex(1f)) {
             HomeSidebar(
                 section = section,
@@ -142,20 +162,24 @@ fun HomeLayout(
                     else if (hasContent) contentFocus.requestFocus()
                 },
                 menuFocus = menuFocus, contentFocus = contentFocus, hasContent = hasContent,
-                onRefresh = { if (newItems != null) newItems.refresh() else onRefresh() },
+                onRefresh = { if (section == HomeSection.History) onHistoryRetry()
+                    else if (newItems != null) newItems.refresh() else onRefresh() },
                 onSettings = onPlayerSettings, onInterfaceSettings = onInterfaceSettings, onSignOut = onSignOut,
                 expanded = !interfaceOptions.autoCollapseSidebar || menuExpanded,
                 onMenuFocused = { menuExpanded = true },
             )
           }
-          Row(Modifier.fillMaxSize()) {
+          // Reading space belongs to the catalog, not the sidebar. Keeping the
+          // menu full-height leaves every destination reachable with History added.
+          Row(Modifier.fillMaxSize().padding(bottom = if (interfaceOptions.fullTitle) focusedTitleSpace() else 0.dp)) {
             Spacer(Modifier.width(BrowseDimensions.contentSidebarWidth(interfaceOptions).dp))
             Column(Modifier.weight(1f).testTag("catalog_viewport")) {
                 Column(Modifier.padding(start = 24.dp, end = Overscan.Horizontal,
                     top = Overscan.Vertical, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     val (title, subtitle) = when (section) {
-                        HomeSection.Subscriptions -> "Ваши подписки" to "Новые публикации по авторам"
-                        HomeSection.New -> "Новое" to "Свежие публикации всех подписок по дате"
+                        HomeSection.Subscriptions -> "Ваши подписки" to "Новые публикации по авторам · Долгое OK — действия"
+                        HomeSection.New -> "Новое" to "Свежие публикации всех подписок по дате · Долгое OK — действия"
+                        HomeSection.History -> "История" to "Недавние просмотры на этом ТВ · Долгое OK — действия"
                     }
                     Text(title, style = MaterialTheme.typography.headlineSmall)
                     Text(subtitle, style = MaterialTheme.typography.bodySmall,
@@ -166,20 +190,32 @@ fun HomeLayout(
                     .focusProperties {
                         exit = { if (it == FocusDirection.Left) menuFocus else FocusRequester.Default }
                     }.focusGroup()) {
-                    if (newItems != null) {
-                        NewFeedContent(newItems, newGridState, onPostClick)
+                    if (section == HomeSection.History) {
+                        HistoryContent(historyState, historyGridState, onPostClick, { actionPost = it }, onHistoryRetry)
+                    } else if (newItems != null) {
+                        NewFeedContent(newItems, newGridState, onPostClick, { actionPost = it })
                     } else when (state) {
                         is HomeUiState.Loading -> LoadingState()
                         is HomeUiState.Error -> ErrorState(detail = state.message, onRetry = onRefresh)
                         is HomeUiState.NoSubscriptions -> EmptyState(
                             title = "Здесь будут ваши авторы",
                             detail = "Подпишитесь на авторов на boosty.to — их публикации появятся на вашем ТВ.")
-                        is HomeUiState.Content -> HomeContent(state, continueWatching, onPostClick, onBlogClick, menuFocus)
+                        is HomeUiState.Content -> HomeContent(state, continueWatching, onPostClick, onBlogClick, menuFocus) { actionPost = it }
                     }
                 }
             }
           }
         }
+    }
+    actionPost?.let { post ->
+        val storedVideo = continueWatching.any { it.id == post.id } ||
+            (historyState as? HistoryUiState.Content)?.entries?.any { it.postId == post.id } == true
+        PostActionsDialog(post, onOpen = { onPostClick(post) }, onDismiss = { actionPost = null },
+            onFromStart = if (post.isPlayable || storedVideo) ({ onPostFromStart(post) }) else null,
+            onAuthor = post.blogUrl.takeIf { it.isNotBlank() }?.let { url -> { onBlogClick(url) } },
+            onRemoveHistory = if (section == HomeSection.History && onRemoveHistory != null)
+                ({ onRemoveHistory(post) }) else null,
+            onRemoved = { actionPost = null; focusMenu = true })
     }
 }
 
@@ -190,6 +226,7 @@ private fun HomeContent(
     onPostClick: (Post) -> Unit,
     onBlogClick: (String) -> Unit,
     menuFocus: FocusRequester,
+    onPostLongClick: (Post) -> Unit,
 ) {
     val rows = state.rows.filter { it.posts.isNotEmpty() }
     if (rows.isEmpty() && continueWatching.isEmpty()) {
@@ -209,6 +246,7 @@ private fun HomeContent(
                 horizontalPadding = 24.dp, titleModifier = Modifier.testTag("continue_watching"),
                 menuFocus = menuFocus,
                 compactSingle = true,
+                onPostLongClick = onPostLongClick,
             )
         }
         items(items = rows, key = { it.blog.url }) { row ->
@@ -218,6 +256,7 @@ private fun HomeContent(
                 onTitleClick = { onBlogClick(row.blog.url) },
                 horizontalPadding = 24.dp,
                 menuFocus = menuFocus,
+                onPostLongClick = onPostLongClick,
             )
         }
     }

@@ -58,6 +58,7 @@ fun PostRow(
     titleModifier: Modifier = Modifier,
     menuFocus: FocusRequester? = null,
     compactSingle: Boolean = false,
+    onPostLongClick: ((Post) -> Unit)? = null,
 ) {
     if (posts.isEmpty()) return
     val rowState = rememberLazyListState()
@@ -129,6 +130,7 @@ fun PostRow(
                 PostCard(
                     post,
                     onClick = { onPostClick(post) },
+                    onLongClick = onPostLongClick?.let { action -> { action(post) } },
                     inAuthorRow = onTitleClick != null,
                     horizontal = compactSingle && posts.size == 1,
                     modifier = if (index == 0) Modifier.focusRequester(firstPostFocus)

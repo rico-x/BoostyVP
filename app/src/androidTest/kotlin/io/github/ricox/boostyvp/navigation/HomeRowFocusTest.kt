@@ -128,7 +128,7 @@ class HomeRowFocusTest {
                     onBlogClick = {}, onSignOut = {}, onRefresh = {},
                 )
             }
-            playerDestination { _, _ ->
+            playerDestination { _, _, _ ->
                 Box(Modifier.fillMaxSize()) {
                     AndroidView(factory = { context ->
                         PlayerView(context).apply { isFocusable = true; requestFocus() }

@@ -4,6 +4,8 @@ import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.ricox.boostyvp.core.data.library.PlaybackProgressDao
 import io.github.ricox.boostyvp.core.data.library.PlaybackProgressEntity
+import io.github.ricox.boostyvp.core.data.library.WatchHistoryDao
+import io.github.ricox.boostyvp.core.data.library.WatchHistoryEntity
 import io.github.ricox.boostyvp.core.domain.auth.CurrentAccount
 import io.github.ricox.boostyvp.core.domain.repository.PlaybackProgressRepository
 import io.github.ricox.boostyvp.core.model.WatchProgress
@@ -52,6 +54,7 @@ class RoomPlaybackProgressRepository @Inject constructor(
     private val dao: PlaybackProgressDao,
     private val account: CurrentAccount,
     private val legacy: LegacyPlaybackPositions,
+    private val history: WatchHistoryDao,
 ) : PlaybackProgressRepository {
     private val migration = Mutex()
     @Volatile private var migrated = false
@@ -61,6 +64,11 @@ class RoomPlaybackProgressRepository @Inject constructor(
     override suspend fun save(progress: WatchProgress) = withContext(NonCancellable) {
         val key = account.currentKey() ?: return@withContext
         migrateLegacy(key)
+        if (progress.hasCard && progress.postId.isNotBlank() && progress.videoId.isNotBlank()) {
+            history.upsert(WatchHistoryEntity(key, progress.postId, progress.videoId,
+                progress.positionMs.coerceAtLeast(0), progress.durationMs.coerceAtLeast(0), progress.updatedAt,
+                progress.blogUrl, progress.title, progress.blogTitle, progress.previewUrl))
+        }
         if (progress.isWorthResuming()) {
             dao.upsert(progress.toEntity(key))
         } else {

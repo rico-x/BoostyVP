@@ -56,7 +56,7 @@ class NewFeedFocusTest {
         screen()
         openNewSection()
         compose.onNodeWithTag("sidebar_new").assertIsSelected()
-        compose.onNodeWithText("Свежие публикации всех подписок по дате").assertIsDisplayed()
+        compose.onNodeWithText("Свежие публикации всех подписок по дате · Долгое OK — действия").assertIsDisplayed()
         compose.onNodeWithText("Видео 0.0").assertDoesNotExist()
 
         compose.onNodeWithTag("sidebar_new").performKeyInput { pressKey(Key.DirectionRight) }
@@ -155,7 +155,7 @@ class NewFeedFocusTest {
                     newPosts = flowOf(PagingData.from(newPosts)),
                 )
             }
-            playerDestination { _, _ ->
+            playerDestination { _, _, _ ->
                 Box(Modifier.fillMaxSize().testTag("native_player")) {
                     AndroidView(factory = { context ->
                         PlayerView(context).apply { isFocusable = true; requestFocus() }

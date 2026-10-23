@@ -5,7 +5,8 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,7 +25,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -37,6 +41,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -60,10 +65,14 @@ import io.github.ricox.boostyvp.core.ui.theme.LocalAccentText
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier, inAuthorRow: Boolean = false,
-    previewFocused: Boolean = false, horizontal: Boolean = false) {
+    previewFocused: Boolean = false, horizontal: Boolean = false, onLongClick: (() -> Unit)? = null) {
     val colors = MaterialTheme.colorScheme
     val size = LocalCardSize.current
     val options = LocalInterfaceOptions.current
@@ -75,6 +84,20 @@ fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier, inA
     var focused by remember { mutableStateOf(false) }
     var titleOverflow by remember(post.id, post.title) { mutableStateOf(false) }
     var titleReader by remember(post.id) { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val currentClick by rememberUpdatedState(onClick)
+    val currentLongClick by rememberUpdatedState(onLongClick)
+    val longPressTimeout = LocalViewConfiguration.current.longPressTimeoutMillis
+    var heldKey by remember(post.id) { mutableStateOf<Int?>(null) }
+    var longPressDelivered by remember(post.id) { mutableStateOf(false) }
+    var longPressJob by remember(post.id) { mutableStateOf<Job?>(null) }
+    DisposableEffect(post.id) {
+        onDispose {
+            longPressJob?.cancel()
+            longPressJob = null
+            heldKey = null
+        }
+    }
     val highlighted = focused || previewFocused
     val zoom by animateFloatAsState(if (highlighted && options.focusZoom) 1.02f else 1f,
         animationSpec = if (options.animateFocus) tween(120) else snap(), label = "cardFocus")
@@ -87,9 +110,48 @@ fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier, inA
     }
     // Own the focus transition so "no animation" really snaps instead of retaining
     // the TV Card's internal scale animation. Keep one stable clickable focus node.
-    Column(modifier.width(if (horizontal) 380.dp else size.widthDp.dp).onFocusChanged { focused = it.isFocused }
+    Column(modifier.width(if (horizontal) 380.dp else size.widthDp.dp).onFocusChanged {
+        focused = it.isFocused
+        if (!it.isFocused) {
+            longPressJob?.cancel()
+            longPressJob = null
+            heldKey = null
+        }
+    }
         .onPreviewKeyEvent {
-            if (it.nativeKeyEvent.keyCode == android.view.KeyEvent.KEYCODE_INFO && options.fullTitle && titleOverflow) {
+            val native = it.nativeKeyEvent
+            val ok = native.keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER ||
+                native.keyCode == android.view.KeyEvent.KEYCODE_ENTER ||
+                native.keyCode == android.view.KeyEvent.KEYCODE_NUMPAD_ENTER
+            if (ok && onLongClick != null) {
+                // combinedClickable handles touch/accessibility, but not held remote OK
+                // on every TV. Own both halves so release cannot also start playback.
+                if (it.type == KeyEventType.KeyDown) {
+                    if (native.repeatCount == 0 && heldKey == null) {
+                        heldKey = native.keyCode
+                        longPressDelivered = false
+                        longPressJob = scope.launch {
+                            delay(longPressTimeout)
+                            if (heldKey == native.keyCode && !longPressDelivered) {
+                                longPressDelivered = true
+                                currentLongClick?.invoke()
+                            }
+                        }
+                    } else if (heldKey == native.keyCode && native.isLongPress && !longPressDelivered) {
+                        longPressJob?.cancel()
+                        longPressDelivered = true
+                        currentLongClick?.invoke()
+                    }
+                } else if (it.type == KeyEventType.KeyUp && heldKey == native.keyCode) {
+                    longPressJob?.cancel()
+                    heldKey = null
+                    if (!longPressDelivered && !native.isCanceled) currentClick()
+                }
+                true
+            } else if (native.keyCode == android.view.KeyEvent.KEYCODE_MENU && onLongClick != null) {
+                if (it.type == KeyEventType.KeyDown && it.nativeKeyEvent.repeatCount == 0) onLongClick()
+                true
+            } else if (it.nativeKeyEvent.keyCode == android.view.KeyEvent.KEYCODE_INFO && options.fullTitle && titleOverflow) {
                 if (it.type == KeyEventType.KeyDown) titleReader = true
                 true
             } else false
@@ -98,8 +160,8 @@ fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier, inA
         .background(if (light) Color.Transparent else if (highlighted) colors.surfaceVariant else colors.surface)
         .border(if (highlighted) options.focusWidth.dp else 1.dp,
             if (highlighted) frame else if (light) Color.Transparent else colors.border.copy(alpha = 0.4f), shape)
-        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null,
-            role = Role.Button, onClick = onClick)) {
+        .combinedClickable(interactionSource = remember { MutableInteractionSource() }, indication = null,
+            role = Role.Button, onLongClickLabel = "Действия публикации", onLongClick = onLongClick, onClick = onClick)) {
         @Composable fun Thumbnail(thumbnailModifier: Modifier) {
             Box(thumbnailModifier.aspectRatio(16f / 9f).clip(if (light || horizontal) shape else RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
                 .background(Brush.linearGradient(listOf(colors.surfaceVariant, colors.background)))) {

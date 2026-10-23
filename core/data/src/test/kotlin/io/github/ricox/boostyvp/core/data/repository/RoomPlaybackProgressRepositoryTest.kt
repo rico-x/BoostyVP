@@ -2,6 +2,9 @@ package io.github.ricox.boostyvp.core.data.repository
 
 import io.github.ricox.boostyvp.core.data.library.PlaybackProgressDao
 import io.github.ricox.boostyvp.core.data.library.PlaybackProgressEntity
+import io.github.ricox.boostyvp.core.data.library.WatchHistoryDao
+import io.mockk.mockk
+import io.mockk.coVerify
 import io.github.ricox.boostyvp.core.domain.auth.CurrentAccount
 import io.github.ricox.boostyvp.core.model.WatchProgress
 import kotlinx.coroutines.flow.Flow
@@ -47,7 +50,8 @@ class RoomPlaybackProgressRepositoryTest {
     private val dao = FakeDao()
     private val account = FakeAccount("boosty:1")
     private val legacy = FakeLegacy(emptyMap())
-    private val repository = RoomPlaybackProgressRepository(dao, account, legacy)
+    private val history = mockk<WatchHistoryDao>(relaxed = true)
+    private val repository = RoomPlaybackProgressRepository(dao, account, legacy, history)
 
     private fun progress(post: String, video: String = "v-$post", position: Long = 60_000, duration: Long = 600_000,
         at: Long = 1, card: Boolean = true) = WatchProgress(post, video, position, duration, at,
@@ -69,6 +73,7 @@ class RoomPlaybackProgressRepositoryTest {
         assertTrue(dao.rows.value.isEmpty())
         assertEquals(0L, repository.resumePositionMs("a", "v-a"))
         assertTrue(repository.continueWatching().first().isEmpty())
+        coVerify(exactly = 0) { history.upsert(any()) }
     }
 
     @Test fun `start and end of a video are not worth resuming`() = runTest {
@@ -114,7 +119,22 @@ class RoomPlaybackProgressRepositoryTest {
     @Test fun `an old position never overwrites a newer checkpoint`() = runTest {
         repository.save(progress("post-1", video = "video-1", position = 200_000))
         val fresh = RoomPlaybackProgressRepository(dao, account,
-            FakeLegacy(mapOf("post-1:video-1" to 20_000L)))
+            FakeLegacy(mapOf("post-1:video-1" to 20_000L)), history)
         assertEquals(200_000L, fresh.resumePositionMs("post-1", "video-1"))
+    }
+
+    @Test fun `history keeps started and completed videos even without a resume point`() = runTest {
+        repository.save(progress("start", position = 0))
+        repository.save(progress("end", position = 600_000))
+        repository.clear("end", "v-end")
+        assertTrue(repository.continueWatching().first().isEmpty())
+        coVerify { history.upsert(match { it.account == "boosty:1" && it.postId == "start" && it.positionMs == 0L }) }
+        coVerify { history.upsert(match { it.account == "boosty:1" && it.postId == "end" && it.positionMs == 600_000L }) }
+        coVerify(exactly = 0) { history.deletePost(any(), any()) }
+    }
+
+    @Test fun `legacy positions without metadata do not invent history cards`() = runTest {
+        repository.save(progress("legacy", card = false))
+        coVerify(exactly = 0) { history.upsert(any()) }
     }
 }
