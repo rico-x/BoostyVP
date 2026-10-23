@@ -29,4 +29,25 @@ class PlayerOptionsTest {
         }
         assertEquals(1.5f, PlayerOptions.safeSpeed(1.5f), 0f)
     }
+
+    @Test fun newOptionsKeepTheOldBehaviourByDefault() {
+        val options = PlayerOptions()
+        assertEquals(EndAction.Stop, options.endAction)
+        assertEquals(0L, options.sleepTimerMs)
+        assertEquals(true, options.rememberQuality)
+        assertEquals(false, options.speedPerAuthor)
+    }
+
+    @Test fun unknownStoredValuesFallBackSafely() {
+        assertEquals(EndAction.Stop, EndAction.fromId("teleport"))
+        assertEquals(EndAction.Next, EndAction.fromId("next"))
+        assertEquals(0, PlayerOptions(sleepTimerMinutes = 45).normalized().sleepTimerMinutes)
+        assertEquals(7_200_000L, PlayerOptions(sleepTimerMinutes = 120).normalized().sleepTimerMs)
+    }
+
+    @Test fun endActionsAndSleepTimesCycle() {
+        assertEquals(EndAction.Next, EndAction.entries.nextItem(EndAction.Stop))
+        assertEquals(EndAction.Stop, EndAction.entries.nextItem(EndAction.Close))
+        assertEquals(listOf("выкл", "30 мин", "1 ч", "2 ч", "3 ч"), PlayerOptions.SLEEP_TIMES.map(PlayerOptions::sleepLabel))
+    }
 }

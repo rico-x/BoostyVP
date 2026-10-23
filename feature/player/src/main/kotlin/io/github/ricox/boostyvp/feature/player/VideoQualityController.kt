@@ -47,8 +47,12 @@ internal class VideoQualityController(
     private val player: ExoPlayer,
     private val fallback: FallbackController,
     private val candidates: List<VideoSource>,
+    /** A quality picked in the dialog, null for "Авто"; the caller may remember it. */
+    private val onManualChoice: (Int?) -> Unit = {},
 ) {
     private var selectedHeight: Int? = null
+    /** A remembered quality still waiting for the adaptive stream's tracks. */
+    private var rememberedHeight: Int? = null
     private var dialog: AlertDialog? = null
     private var qualityButton: Button? = null
 
@@ -57,8 +61,6 @@ internal class VideoQualityController(
             ?: return
         val settings = playerView.findViewById<View>(androidx.media3.ui.R.id.exo_settings)
         qualityButton = Button(playerView.context, null, android.R.attr.borderlessButtonStyle).apply {
-            text = "Качество: Авто"
-            contentDescription = "Качество видео: Авто"
             isAllCaps = false
             background = playerControlBackground(playerView.context)
             setTextColor(playerControlTextColors(playerView.context))
@@ -67,6 +69,8 @@ internal class VideoQualityController(
             isFocusable = true
             setOnClickListener { show(playerView) }
         }
+        // A remembered quality may already be chosen before the controls exist.
+        showLabel(selectedHeight)
         controls.addView(
             qualityButton,
             controls.indexOfChild(settings).coerceAtLeast(0),
@@ -87,7 +91,38 @@ internal class VideoQualityController(
         }
     }
 
+    /**
+     * Start at a remembered quality, before [FallbackController.start]: the same
+     * height or the nearest below it. The button shows what is actually used.
+     */
+    fun preselect(preferredHeight: Int?) {
+        val wanted = preferredHeight ?: return
+        val progressive = qualityResolutions(candidates, emptyList())
+        if (progressive.isEmpty()) {
+            rememberedHeight = wanted // decided once the manifest's tracks are known
+            return
+        }
+        val height = rememberedResolution(progressive, wanted) ?: return
+        selectedHeight = height
+        showLabel(height)
+        fallback.replaceSources(sourcesForResolution(candidates, height))
+    }
+
+    private fun showLabel(height: Int?) {
+        val label = height?.let { "${it}p" } ?: "Авто"
+        qualityButton?.text = "Качество: $label"
+        qualityButton?.contentDescription = "Качество видео: $label"
+    }
+
     fun onTracksChanged() {
+        rememberedHeight?.let { wanted ->
+            val heights = supportedTracks().map { (group, index) -> group.getTrackFormat(index).height }
+            if (heights.isNotEmpty()) {
+                rememberedHeight = null
+                selectedHeight = rememberedResolution(heights.distinct(), wanted)
+                showLabel(selectedHeight)
+            }
+        }
         val height = selectedHeight ?: return
         val match = supportedTracks()
             .filter { (group, index) -> group.getTrackFormat(index).height == height }
@@ -174,6 +209,7 @@ internal class VideoQualityController(
                 onTracksChanged()
             }
         }
+        onManualChoice(height)
     }
 
     fun dismiss() {
