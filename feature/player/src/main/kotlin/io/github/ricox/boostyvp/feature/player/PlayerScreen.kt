@@ -1,5 +1,6 @@
 package io.github.ricox.boostyvp.feature.player
 
+import android.os.SystemClock
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -21,9 +22,11 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
+import io.github.ricox.boostyvp.core.model.Post
 import io.github.ricox.boostyvp.core.ui.component.EmptyState
 import io.github.ricox.boostyvp.core.ui.component.ErrorState
 import io.github.ricox.boostyvp.core.ui.component.LoadingState
+import io.github.ricox.boostyvp.core.ui.player.EndAction
 import io.github.ricox.boostyvp.core.ui.player.PlayerPreferences
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -55,7 +58,7 @@ fun PlayerScreen(
 
         is PlayerUiState.Failed -> ErrorState(
             detail = current.message,
-            onRetry = { viewModel.load(blogUrl, postId) },
+            onRetry = viewModel::retry,
         )
 
         is PlayerUiState.Ready -> VideoSurface(
@@ -63,6 +66,9 @@ fun PlayerScreen(
             state = current,
             onProgress = { position, duration -> viewModel.onProgress(current, position, duration) },
             onEnded = { viewModel.onPlaybackEnded(current) },
+            onRefresh = viewModel::refresh,
+            findNext = { viewModel.nextVideo(current) },
+            onPlayNext = viewModel::playNext,
         )
     }
 }
@@ -74,6 +80,9 @@ private fun VideoSurface(
     state: PlayerUiState.Ready,
     onProgress: (Long, Long) -> Unit,
     onEnded: () -> Unit,
+    onRefresh: (positionMs: Long, force: Boolean) -> Boolean,
+    findNext: suspend () -> Post?,
+    onPlayNext: (Post) -> Unit,
 ) {
     val context = LocalContext.current
     val preferences = remember(context) { PlayerPreferences(context) }
@@ -84,16 +93,21 @@ private fun VideoSurface(
             .setSeekBackIncrementMs(options.seekBackSeconds * 1_000L)
             .setSeekForwardIncrementMs(options.seekForwardSeconds * 1_000L)
             .build()
-            .apply { setPlaybackSpeed(preferences.playbackSpeed()) }
+            .apply { setPlaybackSpeed(preferences.playbackSpeed(state.blogUrl)) }
     }
 
     // Index into state.candidates. On a fatal error the controller steps to the
     // next candidate -- a different rendition, or the same one on the failover
     // host -- because ExoPlayer's own retry only ever re-tries the same URL.
     val fallback = remember(player) { FallbackController(player, state.candidates) }
-    val quality = remember(player) { VideoQualityController(player, fallback, state.candidates) }
+    val quality = remember(player) {
+        VideoQualityController(player, fallback, state.candidates, onManualChoice = preferences::savePreferredQuality)
+    }
     var playbackError by remember(player) { mutableStateOf<String?>(null) }
     var playbackEnded by remember(player) { mutableStateOf(false) }
+    var surface by remember(player) { mutableStateOf<TvPlayerView?>(null) }
+    val stalls = remember(player) { StallDetector() }
+    val refreshForPlayer = remember(player) { onRefresh }
     // Keep callbacks bound to this player's video, including its final checkpoint
     // when a new Ready state replaces it during the same composition.
     val progressForPlayer = remember(player) { onProgress }
@@ -102,23 +116,38 @@ private fun VideoSurface(
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
-                if (!fallback.advance(error)) {
-                    playbackError = error.localizedMessage ?: "Не удалось воспроизвести видео."
-                }
+                if (fallback.advance(error)) return
+                // Every link of this post failed together: most likely they expired.
+                if (refreshForPlayer(player.currentPosition.coerceAtLeast(0), false)) return
+                playbackError = error.localizedMessage ?: "Не удалось воспроизвести видео."
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
+                trackStall()
                 playbackEnded = playbackState == Player.STATE_ENDED
                 if (playbackEnded) endedForPlayer()
+            }
+
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) = trackStall()
+
+            /** Only buffering the viewer is waiting for counts; a paused load does not. */
+            private fun trackStall() {
+                val now = SystemClock.elapsedRealtime()
+                if (player.playWhenReady && player.playbackState == Player.STATE_BUFFERING) {
+                    stalls.bufferingStarted(now)
+                } else {
+                    stalls.bufferingEnded(now)
+                }
             }
 
             override fun onTracksChanged(tracks: Tracks) = quality.onTracksChanged()
 
             override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
-                preferences.saveSpeed(playbackParameters.speed)
+                preferences.saveSpeed(playbackParameters.speed, state.blogUrl)
             }
         }
         player.addListener(listener)
+        quality.preselect(preferences.preferredQuality())
         fallback.start(startPositionMs = state.startPositionMs)
 
         onDispose {
@@ -158,11 +187,54 @@ private fun VideoSurface(
         }
     }
 
+    // Buffering that does not end: fetch fresh links and continue at the same place.
+    LaunchedEffect(player) {
+        while (isActive) {
+            delay(2_000)
+            if (stalls.isStalled(SystemClock.elapsedRealtime())) {
+                stalls.reset()
+                refreshForPlayer(player.currentPosition.coerceAtLeast(0), false)
+            }
+        }
+    }
+
+    // Sleep timer: pause after the configured time without a remote key press.
+    LaunchedEffect(player) {
+        if (options.sleepTimerMs <= 0) return@LaunchedEffect
+        while (isActive) {
+            delay(15_000)
+            val view = surface ?: continue
+            if (sleepTimerDue(SystemClock.uptimeMillis(), view.lastInteractionAt, options.sleepTimerMs, player.isPlaying)) {
+                player.pause()
+                view.showController()
+                view.showNotice("Таймер сна: воспроизведение остановлено")
+            }
+        }
+    }
+
+    LaunchedEffect(player, playbackEnded) {
+        if (!playbackEnded) return@LaunchedEffect
+        when (options.endAction) {
+            EndAction.Stop -> Unit
+            EndAction.Repeat -> {
+                player.seekTo(0)
+                player.play()
+            }
+            EndAction.Close -> onClose()
+            EndAction.Next -> {
+                val next = findNext() ?: return@LaunchedEffect
+                surface?.showNextUp(next.title, NEXT_UP_SECONDS, onPlay = { onPlayNext(next) },
+                    onCancel = { surface?.showController() })
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         if (playbackError == null) TvPlayerHost(
             onDismiss = onClose,
             factory = { ctx ->
                 val view = TvPlayerView(ctx)
+                surface = view
                 view.apply {
                     this.player = player
                     useController = true
@@ -180,18 +252,18 @@ private fun VideoSurface(
             update = {
                 it.player = player
                 it.controllerShowTimeoutMs = if (playbackEnded) 0 else options.controllerTimeoutMs
-                if (playbackEnded) it.showController()
+                if (playbackEnded && !it.isNextUpShown) it.showController()
             },
             modifier = Modifier.fillMaxSize(),
         ) else playbackError?.let { detail ->
             ErrorState(
                 title = "Не удалось воспроизвести",
                 detail = detail,
-                onRetry = {
-                    playbackError = null
-                    fallback.start(player.currentPosition.coerceAtLeast(0))
-                },
+                // The viewer's own retry always fetches fresh links, unlike the same dead ones.
+                onRetry = { refreshForPlayer(player.currentPosition.coerceAtLeast(0), true) },
             )
         }
     }
 }
+
+private const val NEXT_UP_SECONDS = 8

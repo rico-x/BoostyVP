@@ -18,6 +18,7 @@ import androidx.compose.ui.test.pressKey
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
+import io.github.ricox.boostyvp.core.ui.player.EndAction
 import io.github.ricox.boostyvp.core.ui.player.PlayerOptions
 import io.github.ricox.boostyvp.core.ui.player.PlayerPreferences
 import io.github.ricox.boostyvp.core.ui.player.PlayerSettingsDialog
@@ -27,6 +28,7 @@ import io.github.ricox.boostyvp.feature.home.HomeUiState
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -85,6 +87,64 @@ class PlayerSettingsTest {
         preferences.saveSpeed(2f)
         assertEquals(1f, PlayerPreferences(context).playbackSpeed(), 0f)
         assertFalse(PlayerPreferences(context).load().rememberSpeed)
+    }
+
+    @Test fun newPlaybackSettingsAreChangedWithRemoteAndPersist() {
+        val preferences = PlayerPreferences(context)
+        compose.setContent {
+            BoostyVPTheme {
+                var options by remember { mutableStateOf(preferences.load()) }
+                PlayerSettingsDialog(options, {
+                    options = it
+                    preferences.save(it)
+                }, {})
+            }
+        }
+        activate("Скорость для каждого автора: нет")
+        activate("Запоминать качество: да")
+        activate("В конце видео: остановиться")
+        activate("Таймер сна: выкл")
+        compose.onNodeWithText("Таймер сна: 30 мин").assertIsDisplayed()
+        compose.onNodeWithText("Пауза, если столько времени не нажимать кнопки пульта во время просмотра.")
+            .assertIsDisplayed()
+        device.takeScreenshot(File(context.getExternalFilesDir(null), "player-settings-playback.png"))
+        // The last rows are below the fold of a 540 dp screen; focus scrolls them in.
+        activate("Готово")
+        compose.runOnIdle {
+            val saved = PlayerPreferences(context).load()
+            assertEquals(true, saved.speedPerAuthor)
+            assertEquals(false, saved.rememberQuality)
+            assertEquals(EndAction.Next, saved.endAction)
+            assertEquals(30, saved.sleepTimerMinutes)
+        }
+    }
+
+    @Test fun speedIsKeptPerAuthorWhenAsked() {
+        val preferences = PlayerPreferences(context)
+        preferences.saveSpeed(1.25f)
+        preferences.save(preferences.load().copy(speedPerAuthor = true))
+        preferences.saveSpeed(1.5f, "author-a")
+        preferences.saveSpeed(0.75f, "author-b")
+        assertEquals(1.5f, PlayerPreferences(context).playbackSpeed("author-a"), 0f)
+        assertEquals(0.75f, PlayerPreferences(context).playbackSpeed("author-b"), 0f)
+        assertEquals("A new author starts at the common speed", 1.25f, PlayerPreferences(context).playbackSpeed("author-c"), 0f)
+        preferences.save(preferences.load().copy(speedPerAuthor = false))
+        assertEquals(1.25f, PlayerPreferences(context).playbackSpeed("author-a"), 0f)
+    }
+
+    @Test fun qualityIsRememberedUntilSwitchedOff() {
+        val preferences = PlayerPreferences(context)
+        assertNull(preferences.preferredQuality())
+        preferences.savePreferredQuality(720)
+        assertEquals(720, PlayerPreferences(context).preferredQuality())
+        preferences.savePreferredQuality(null)
+        assertNull("Авто forgets the height", PlayerPreferences(context).preferredQuality())
+        preferences.savePreferredQuality(1080)
+        preferences.save(preferences.load().copy(rememberQuality = false))
+        assertNull(PlayerPreferences(context).preferredQuality())
+        preferences.savePreferredQuality(480)
+        preferences.save(preferences.load().copy(rememberQuality = true))
+        assertNull("Nothing is stored while switched off", PlayerPreferences(context).preferredQuality())
     }
 
     private fun activate(label: String) {

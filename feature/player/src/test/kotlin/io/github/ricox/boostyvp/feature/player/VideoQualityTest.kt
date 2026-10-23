@@ -54,4 +54,30 @@ class VideoQualityTest {
         verify { player.playWhenReady = false }
         verify(exactly = 0) { player.playWhenReady = true }
     }
+
+    @Test
+    fun `a remembered quality starts the next video at that height or the nearest below`() {
+        val sd = VideoSource(VideoSource.Kind.Progressive, "https://cdn.example/480", 4, "medium")
+        val player = mockk<ExoPlayer>(relaxed = true)
+        val started = mutableListOf<VideoSource>()
+        val fallback = FallbackController(player, listOf(fullHd, hd, sd)) { started += it; mockk() }
+        val chosen = mutableListOf<Int?>()
+        val quality = VideoQualityController(player, fallback, listOf(fullHd, hd, sd), onManualChoice = { chosen += it })
+
+        quality.preselect(1_000)
+        fallback.start(startPositionMs = 42_000)
+
+        assertEquals("1080p was never chosen, so 720p it is", listOf(hd), started)
+        assertEquals("Preselection is not a manual choice", emptyList<Int?>(), chosen)
+    }
+
+    @Test
+    fun `no remembered quality keeps the full ladder`() {
+        val player = mockk<ExoPlayer>(relaxed = true)
+        val started = mutableListOf<VideoSource>()
+        val fallback = FallbackController(player, listOf(fullHd, hd)) { started += it; mockk() }
+        VideoQualityController(player, fallback, listOf(fullHd, hd)).preselect(null)
+        fallback.start(startPositionMs = 0)
+        assertEquals(listOf(fullHd), started)
+    }
 }

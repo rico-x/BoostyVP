@@ -3,6 +3,7 @@ package io.github.ricox.boostyvp.feature.player
 import io.github.ricox.boostyvp.core.domain.repository.BlogRepository
 import io.github.ricox.boostyvp.core.domain.repository.PlaybackProgressRepository
 import io.github.ricox.boostyvp.core.model.ContentBlock
+import io.github.ricox.boostyvp.core.model.Page
 import io.github.ricox.boostyvp.core.model.Post
 import io.github.ricox.boostyvp.core.model.VideoSource
 import io.github.ricox.boostyvp.core.model.WatchProgress
@@ -148,5 +149,77 @@ class PlayerViewModelTest {
         model.load("blog", "post")
         advanceUntilIdle()
         assertEquals(PlayerUiState.Loading, model.state.value)
+    }
+
+    @Test fun `refresh fetches the post again and continues where it stopped`() = runTest(dispatcher) {
+        coEvery { blogs.post("blog", "a") } answers { post("a") }
+        val model = PlayerViewModel(blogs, progress) { 0 }
+        model.load("blog", "a")
+        advanceUntilIdle()
+        assertEquals(0L, (model.state.value as PlayerUiState.Ready).startPositionMs)
+
+        assertEquals(true, model.refresh(95_000))
+        advanceUntilIdle()
+        assertEquals(95_000L, (model.state.value as PlayerUiState.Ready).startPositionMs)
+        coVerify(exactly = 2) { blogs.post("blog", "a") }
+    }
+
+    @Test fun `a video watched to the end elsewhere starts from the top, a recovery does not`() = runTest(dispatcher) {
+        val watched = post("a").let { post ->
+            val video = post.videos.single().copy(duration = 35, timeCode = 35)
+            post.copy(blocks = listOf(video))
+        }
+        coEvery { blogs.post("blog", "a") } returns watched
+        val model = PlayerViewModel(blogs, progress) { 0 }
+        model.load("blog", "a")
+        advanceUntilIdle()
+        assertEquals(0L, (model.state.value as PlayerUiState.Ready).startPositionMs)
+
+        model.refresh(34_000, force = true)
+        advanceUntilIdle()
+        assertEquals(34_000L, (model.state.value as PlayerUiState.Ready).startPositionMs)
+    }
+
+    @Test fun `automatic refresh is rate-limited but the viewer's retry is not`() = runTest(dispatcher) {
+        coEvery { blogs.post("blog", "a") } answers { post("a") }
+        var now = 0L
+        val model = PlayerViewModel(blogs, progress) { now }
+        model.load("blog", "a")
+        advanceUntilIdle()
+        assertEquals(true, model.refresh(10_000))
+        now = 60_000
+        assertEquals("A second automatic refresh within two minutes", false, model.refresh(20_000))
+        assertEquals("The retry button always refreshes", true, model.refresh(20_000, force = true))
+        now = 300_000
+        assertEquals(true, model.refresh(30_000))
+    }
+
+    @Test fun `next video is the following playable post, across pages`() = runTest(dispatcher) {
+        val text = post("text").copy(blocks = listOf(ContentBlock.Text("Article", null)))
+        val locked = post("locked").copy(hasAccess = false)
+        coEvery { blogs.postsPage("blog", null) } returns Page(listOf(post("first"), post("a"), text, locked), "c1", false)
+        coEvery { blogs.postsPage("blog", "c1") } returns Page(listOf(post("b"), post("c")), null, true)
+        coEvery { blogs.post("blog", any()) } answers { post(secondArg()) }
+        val model = PlayerViewModel(blogs, progress)
+        model.load("blog", "a")
+        advanceUntilIdle()
+        val next = model.nextVideo(model.state.value as PlayerUiState.Ready)
+        assertEquals("b", next?.id)
+
+        model.playNext(next!!)
+        advanceUntilIdle()
+        assertEquals("b", (model.state.value as PlayerUiState.Ready).postId)
+        model.retry()
+        advanceUntilIdle()
+        coVerify(exactly = 2) { blogs.post("blog", "b") }
+    }
+
+    @Test fun `no next video at the end of the author's list`() = runTest(dispatcher) {
+        coEvery { blogs.postsPage("blog", null) } returns Page(listOf(post("first"), post("a")), null, true)
+        coEvery { blogs.post("blog", "a") } returns post("a")
+        val model = PlayerViewModel(blogs, progress)
+        model.load("blog", "a")
+        advanceUntilIdle()
+        assertEquals(null, model.nextVideo(model.state.value as PlayerUiState.Ready))
     }
 }

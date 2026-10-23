@@ -30,6 +30,13 @@ class FallbackController(
         advanceTo(0, startPositionMs, playWhenReady)
     }
 
+    /** Choose the sources before [start], e.g. a remembered quality; nothing is loaded yet. */
+    fun replaceSources(sources: List<VideoSource>) {
+        require(sources.isNotEmpty())
+        candidates = sources
+        index = -1
+    }
+
     /** Change rendition without losing the position or unpausing the video. */
     fun selectSources(sources: List<VideoSource>, keepCurrent: Boolean = false) {
         require(sources.isNotEmpty())
