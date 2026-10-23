@@ -82,12 +82,40 @@ class RemoteSeekTest {
         assertEquals(90_000L, hold(1, at = 20_000, releaseAt = 20_100, position = 60_000, durationMs = 0))
     }
 
-    @Test fun `the other arrow while holding turns around from the current target`() {
+    @Test fun `the other arrow while holding turns around from the current target and from zero`() {
         seek.press(1, 30_000, 0, 0, 40_000, duration, firstEvent = true)
         val back = seek.press(-1, 10_000, 200, 200, 40_000, duration, firstEvent = true)
         assertEquals(60_000L, back.targetMs)
         assertEquals(-1, back.direction)
-        assertEquals(20_000L, back.deltaMs)
+        assertEquals(-10_000L, back.deltaMs)
+    }
+
+    @Test fun `back right after holding forward counts down from zero, not through the forward amount`() {
+        val forward = hold(1, at = 0, releaseAt = 3_000, position = 40_000)!!
+        assertTrue(forward > 40_000 + 30_000 * 4)
+        // The player still reports the old position while the forward seek buffers.
+        val tap = seek.press(-1, 10_000, 3_300, 3_300, 41_000, duration, firstEvent = true)
+        assertEquals(forward - 10_000, tap.targetMs)
+        assertEquals(-10_000L, tap.deltaMs)
+        // Holding back keeps growing the minus from that same zero.
+        var shown = tap.deltaMs
+        var t = 3_700L
+        while (t <= 5_300) {
+            val step = seek.press(-1, 10_000, 3_300, t, 41_000, duration, firstEvent = false)
+            assertTrue("${step.deltaMs} <= $shown", step.deltaMs <= shown)
+            assertEquals(forward + step.deltaMs, step.targetMs)
+            shown = step.deltaMs
+            t += 50
+        }
+        assertTrue(shown < -10_000)
+        assertEquals(forward + shown, seek.commit(5_350))
+    }
+
+    @Test fun `forward again after back also starts from zero`() {
+        assertEquals(30_000L, hold(-1, at = 0, releaseAt = 100, position = 40_000, step = 10_000))
+        val forward = seek.press(1, 30_000, 500, 500, 39_000, duration, firstEvent = true)
+        assertEquals(60_000L, forward.targetMs)
+        assertEquals(30_000L, forward.deltaMs)
     }
 
     @Test fun `a cancelled press seeks nowhere and ends the chain`() {

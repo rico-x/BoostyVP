@@ -9,12 +9,15 @@ import kotlin.math.abs
  * applied once, on release, so a long hold does not send dozens of seeks to a
  * network stream. Presses that follow quickly continue from the last target,
  * not from the player's position, which lags behind a seek that is still
- * buffering.
+ * buffering; the amount shown restarts from zero when the direction changes.
  *
  * Pure logic: times are the key events' own uptime values.
  */
 internal class RemoteSeek(private val chainWindowMs: Long = CHAIN_WINDOW_MS) {
-    /** What the indicator shows. [deltaMs] counts from the start of the chain of presses. */
+    /**
+     * What the indicator shows. [deltaMs] counts from where the current run in
+     * one direction began, so a change of direction starts again from zero.
+     */
     data class Preview(val direction: Int, val targetMs: Long, val deltaMs: Long, val durationMs: Long)
 
     private var active = false
@@ -22,7 +25,7 @@ internal class RemoteSeek(private val chainWindowMs: Long = CHAIN_WINDOW_MS) {
     private var stepMs = 0L
     private var targetMs = 0L
     private var lastEventMs = 0L
-    private var chainStartMs = 0L
+    private var runStartMs = 0L
     private var lastCommitMs: Long? = null
     private var lastCommitAt = Long.MIN_VALUE
 
@@ -44,7 +47,10 @@ internal class RemoteSeek(private val chainWindowMs: Long = CHAIN_WINDOW_MS) {
                 chained != null -> chained
                 else -> positionMs.coerceAtLeast(0)
             }
-            if (!active && chained == null) chainStartMs = origin
+            // The amount shown restarts from zero whenever the direction changes,
+            // even straight after holding the other arrow; taps the same way add up.
+            val sameRun = (active || chained != null) && direction == this.direction
+            if (!sameRun) runStartMs = origin
             active = true
             this.direction = direction
             this.stepMs = stepMs
@@ -58,7 +64,7 @@ internal class RemoteSeek(private val chainWindowMs: Long = CHAIN_WINDOW_MS) {
             }
         }
         lastEventMs = eventTimeMs
-        return Preview(this.direction, targetMs, targetMs - chainStartMs, durationMs)
+        return Preview(this.direction, targetMs, targetMs - runStartMs, durationMs)
     }
 
     /** Key up: the position to seek to, or null when no press is in progress. */

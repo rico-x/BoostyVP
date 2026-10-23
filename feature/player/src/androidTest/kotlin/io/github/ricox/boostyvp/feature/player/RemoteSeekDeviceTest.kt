@@ -81,9 +81,24 @@ class RemoteSeekDeviceTest {
         }
     }
 
+    @Test fun turningAroundCountsFromZero() {
+        screen()
+        hideControls()
+        device.pressDPadRight()
+        device.pressDPadLeft()
+        compose.waitUntil(3_000) { compose.runOnIdle { player.seeks == 2 } }
+        compose.runOnIdle {
+            assertEquals("Back is taken from the forward target", 60_000L, player.currentPosition)
+            val texts = (0 until indicator().childCount)
+                .mapNotNull { (indicator().getChildAt(it) as? TextView)?.text?.toString() }
+            assertTrue(texts.toString(), texts.any { it.endsWith("−0:10") })
+        }
+    }
+
     @Test fun holdingAcceleratesAndSeeksOnlyOnRelease() {
         screen(durationMs = 3_600_000)
         hideControls()
+        var releasedAt = 0L
         compose.runOnIdle {
             val down = SystemClock.uptimeMillis()
             assertTrue(view.dispatchKeyEvent(KeyEvent(down, down, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT, 0)))
@@ -97,13 +112,26 @@ class RemoteSeekDeviceTest {
             assertEquals(40_000L, player.currentPosition)
             assertFalse(view.isControllerFullyVisible)
             assertTrue(view.dispatchKeyEvent(KeyEvent(down, t, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_RIGHT, 0)))
+            releasedAt = t
         }
         compose.waitUntil(3_000) { compose.runOnIdle { player.seeks == 1 } }
-        compose.runOnIdle {
+        val forward = compose.runOnIdle {
             // One step, 1.5 s at 2 steps/s and 2 s at 6 steps/s, with 30 s steps.
             assertTrue("${player.currentPosition}", player.currentPosition > 40_000 + 30_000 * 10)
             assertFalse(view.isControllerFullyVisible)
+            player.currentPosition
         }
+        // Back straight after the hold: the shown amount starts at zero, not at the forward total.
+        compose.runOnIdle {
+            val back = releasedAt + 300
+            assertTrue(view.dispatchKeyEvent(KeyEvent(back, back, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, 0)))
+            val texts = (0 until indicator().childCount)
+                .mapNotNull { (indicator().getChildAt(it) as? TextView)?.text?.toString() }
+            assertTrue(texts.toString(), texts.any { it.endsWith("\u22120:10") })
+            assertTrue(view.dispatchKeyEvent(KeyEvent(back, back + 80, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_LEFT, 0)))
+        }
+        compose.waitUntil(3_000) { compose.runOnIdle { player.seeks == 2 } }
+        compose.runOnIdle { assertEquals(forward - 10_000, player.currentPosition) }
     }
 
     @Test fun visibleControlsKeepNativeArrowNavigation() {
