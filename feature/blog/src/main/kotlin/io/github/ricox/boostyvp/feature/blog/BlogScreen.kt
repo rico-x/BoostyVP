@@ -18,6 +18,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.ricox.boostyvp.core.model.Post
+import io.github.ricox.boostyvp.core.ui.appearance.LocalCardSize
 import io.github.ricox.boostyvp.core.ui.component.EmptyState
 import io.github.ricox.boostyvp.core.ui.component.ErrorState
 import io.github.ricox.boostyvp.core.ui.component.LoadingState
@@ -69,7 +70,7 @@ fun BlogScreen(
     ScreenBackdrop {
         LazyVerticalGrid(
             state = gridState,
-            columns = GridCells.Adaptive(minSize = 216.dp),
+            columns = GridCells.Adaptive(minSize = LocalCardSize.current.widthDp.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
             contentPadding = PaddingValues(

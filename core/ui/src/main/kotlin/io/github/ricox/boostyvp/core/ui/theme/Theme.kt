@@ -12,6 +12,7 @@ import androidx.tv.material3.Shapes
 import androidx.tv.material3.Typography
 import androidx.tv.material3.darkColorScheme
 import io.github.ricox.boostyvp.core.ui.R
+import io.github.ricox.boostyvp.core.ui.appearance.ProvideCardSize
 
 private val BoostyTypography = Typography().let {
     it.copy(
@@ -52,7 +53,9 @@ fun BoostyVPTheme(content: @Composable () -> Unit) {
             extraLarge = RoundedCornerShape(28.dp),
         ),
     ) {
-        CompositionLocalProvider(LocalContentColor provides scheme.onBackground, content = content)
+        ProvideCardSize {
+            CompositionLocalProvider(LocalContentColor provides scheme.onBackground, content = content)
+        }
     }
 }
 

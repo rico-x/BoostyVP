@@ -36,6 +36,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import io.github.ricox.boostyvp.core.model.Post
+import io.github.ricox.boostyvp.core.ui.appearance.LocalCardSize
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -43,13 +44,18 @@ import java.util.Locale
 @Composable
 fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
+    val size = LocalCardSize.current
+    val compact = size.widthDp < 216
+    val metadataStyle = MaterialTheme.typography.bodySmall.let {
+        if (compact) it.copy(fontSize = 10.sp, lineHeight = 14.sp) else it
+    }
     val shape = RoundedCornerShape(8.dp)
     val date = remember(post.publishedAt) {
         if (post.publishedAt > 0) SimpleDateFormat("d MMM", Locale.forLanguageTag("ru"))
             .format(Date(post.publishedAt * 1000L)) else ""
     }
     Card(
-        onClick = onClick, modifier = modifier.width(216.dp),
+        onClick = onClick, modifier = modifier.width(size.widthDp.dp),
         shape = CardDefaults.shape(shape),
         colors = CardDefaults.colors(containerColor = colors.surface, contentColor = colors.onSurface,
             focusedContainerColor = colors.surfaceVariant, focusedContentColor = colors.onSurface),
@@ -63,9 +69,9 @@ fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier) {
             Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)
                 .background(Brush.linearGradient(listOf(colors.surfaceVariant, colors.background)))) {
                 if (post.hasVideo) Icon(Icons.Default.PlayArrow, null, tint = colors.primary.copy(alpha = 0.5f),
-                    modifier = Modifier.align(Alignment.Center).size(44.dp))
+                    modifier = Modifier.align(Alignment.Center).size(if (compact) 28.dp else 44.dp))
                 else Text("Публикация", color = colors.onSurfaceVariant,
-                    modifier = Modifier.align(Alignment.Center))
+                    style = metadataStyle, modifier = Modifier.align(Alignment.Center))
                 if (post.thumbnailUrl != null) AsyncImage(
                     model = post.thumbnailUrl, contentDescription = null, contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
@@ -83,21 +89,21 @@ fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier) {
                     WatchProgressBar(watched, Modifier.align(Alignment.BottomStart))
                 }
                 if (post.isPinned) Text("Закреплено", style = MaterialTheme.typography.labelSmall,
-                    color = colors.onPrimary,
-                    modifier = Modifier.align(Alignment.TopStart).padding(10.dp)
+                    color = colors.onPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.align(Alignment.TopStart).padding(if (compact) 4.dp else 10.dp)
                         .background(colors.primary, RoundedCornerShape(6.dp))
                         .padding(horizontal = 8.dp, vertical = 4.dp))
             }
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(Modifier.padding(size.paddingDp.dp), verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 6.dp)) {
                 Text(post.title.ifBlank { "Без названия" }, style = MaterialTheme.typography.titleMedium.copy(
-                    fontSize = 16.sp, lineHeight = 22.sp),
+                    fontSize = size.titleSp.sp, lineHeight = size.lineHeightSp.sp),
                     minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 8.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    Text(post.blogTitle, style = MaterialTheme.typography.bodySmall,
+                    Text(post.blogTitle, style = metadataStyle,
                         color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f))
-                    if (date.isNotEmpty()) Text(date, style = MaterialTheme.typography.bodySmall,
+                    if (date.isNotEmpty()) Text(date, style = metadataStyle,
                         color = colors.onSurfaceVariant)
                 }
             }
@@ -108,12 +114,15 @@ fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier) {
 @Composable
 private fun BoxScope.Badge(icon: ImageVector?, label: String) {
     if (label.isBlank()) return
-    Row(Modifier.align(Alignment.BottomEnd).padding(10.dp)
+    val compact = LocalCardSize.current.widthDp < 216
+    Row(Modifier.align(Alignment.BottomEnd).padding(if (compact) 4.dp else 10.dp)
         .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(6.dp))
-        .padding(horizontal = 8.dp, vertical = 4.dp),
+        .padding(horizontal = if (compact) 4.dp else 8.dp, vertical = if (compact) 2.dp else 4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (icon != null) Icon(icon, null, tint = Color.White, modifier = Modifier.size(14.dp))
-        Text(label, style = MaterialTheme.typography.labelSmall, color = Color.White)
+        if (icon != null) Icon(icon, null, tint = Color.White, modifier = Modifier.size(if (compact) 10.dp else 14.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall.let {
+            if (compact) it.copy(fontSize = 10.sp, lineHeight = 12.sp) else it
+        }, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
@@ -53,6 +54,7 @@ internal fun HomeSidebar(
     hasContent: Boolean,
     onRefresh: () -> Unit,
     onSettings: () -> Unit,
+    onInterfaceSettings: () -> Unit,
     onSignOut: () -> Unit,
 ) {
     val destination = Modifier.focusProperties { if (hasContent) right = contentFocus }
@@ -76,6 +78,8 @@ internal fun HomeSidebar(
         }
         SidebarButton("Обновить", Icons.Default.Refresh, onRefresh, destination)
         SidebarButton("Плеер", Icons.Default.Settings, onSettings, destination)
+        SidebarButton("Интерфейс", Icons.Default.Menu, onInterfaceSettings,
+            destination.testTag("sidebar_interface"))
         Spacer(Modifier.weight(1f))
         SidebarButton("Выйти", Icons.AutoMirrored.Filled.ExitToApp, onSignOut, destination)
     }

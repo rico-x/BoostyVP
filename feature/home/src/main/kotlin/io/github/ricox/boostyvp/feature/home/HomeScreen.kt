@@ -34,6 +34,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.ricox.boostyvp.core.model.Post
+import io.github.ricox.boostyvp.core.ui.appearance.CardSizePreferences
+import io.github.ricox.boostyvp.core.ui.appearance.CardSizeSettingsDialog
+import io.github.ricox.boostyvp.core.ui.appearance.LocalCardSize
 import io.github.ricox.boostyvp.core.ui.component.EmptyState
 import io.github.ricox.boostyvp.core.ui.component.ErrorState
 import io.github.ricox.boostyvp.core.ui.component.LoadingState
@@ -65,9 +68,14 @@ fun HomeScreen(
     val preferences = remember(context) { PlayerPreferences(context) }
     var options by remember { mutableStateOf(preferences.load()) }
     var showPlayerSettings by rememberSaveable { mutableStateOf(false) }
+    val cardPreferences = remember(context) { CardSizePreferences(context) }
+    var showCardSettings by rememberSaveable { mutableStateOf(false) }
     HomeLayout(state, onPostClick, onBlogClick, { showSignOut = true }, viewModel::refresh,
         onPlayerSettings = { options = preferences.load(); showPlayerSettings = true },
+        onInterfaceSettings = { showCardSettings = true },
         newPosts = newFeedViewModel.posts, continueWatching = continueWatching)
+    if (showCardSettings) CardSizeSettingsDialog(LocalCardSize.current,
+        onChange = cardPreferences::save, onDismiss = { showCardSettings = false })
     if (showPlayerSettings) PlayerSettingsDialog(options, onChange = {
         options = it
         preferences.save(it)
@@ -89,6 +97,7 @@ fun HomeLayout(
     onPlayerSettings: () -> Unit = {},
     newPosts: Flow<PagingData<Post>> = emptyFlow(),
     continueWatching: List<Post> = emptyList(),
+    onInterfaceSettings: () -> Unit = {},
 ) {
     val menuFocus = remember { FocusRequester() }
     val contentFocus = remember { FocusRequester() }
@@ -126,7 +135,7 @@ fun HomeLayout(
                 },
                 menuFocus = menuFocus, contentFocus = contentFocus, hasContent = hasContent,
                 onRefresh = { if (newItems != null) newItems.refresh() else onRefresh() },
-                onSettings = onPlayerSettings, onSignOut = onSignOut,
+                onSettings = onPlayerSettings, onInterfaceSettings = onInterfaceSettings, onSignOut = onSignOut,
             )
             Column(Modifier.weight(1f)) {
                 Column(Modifier.padding(start = 24.dp, end = Overscan.Horizontal,
