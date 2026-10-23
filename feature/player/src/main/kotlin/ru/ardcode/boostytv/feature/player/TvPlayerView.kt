@@ -11,8 +11,7 @@ import androidx.media3.ui.PlayerView
 internal class TvPlayerView(context: Context) : PlayerView(context) {
     private var hidingControlsOnBack = false
     private val restorePlaybackFocus = Runnable {
-        // The factory runs before AndroidView is attached. Compose can take focus
-        // back while the dialog's loading screen is replaced by this native view.
+        // Request only after attachment/window focus, never during view construction.
         if (isAttachedToWindow && hasWindowFocus() && !hasFocus()) requestFocus()
     }
     private val hideControlsOnBack = object : OnBackPressedCallback(false) {
@@ -35,8 +34,8 @@ internal class TvPlayerView(context: Context) : PlayerView(context) {
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        // The player lives in a Compose navigation dialog, whose dispatcher receives
-        // system Back directly on newer Android versions instead of native key events.
+        // ComponentDialog receives system Back through its dispatcher on newer
+        // Android versions, including predictive Back rather than native key events.
         findViewTreeOnBackPressedDispatcherOwner()?.onBackPressedDispatcher
             ?.addCallback(hideControlsOnBack)
         hideControlsOnBack.isEnabled = isControllerFullyVisible
@@ -53,14 +52,6 @@ internal class TvPlayerView(context: Context) : PlayerView(context) {
         removeCallbacks(restorePlaybackFocus)
         hidingControlsOnBack = false
         super.onDetachedFromWindow()
-    }
-
-    /** Bridge only player keys when Compose, rather than a native child, has focus. */
-    internal fun dispatchKeyEventFromHost(event: KeyEvent, takeComposeFocus: () -> Unit = {}): Boolean {
-        if (hasFocus() || event.keyCode !in PLAYER_KEYS) return false
-        takeComposeFocus()
-        requestFocus()
-        return dispatchKeyEvent(event)
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
@@ -83,14 +74,4 @@ internal class TvPlayerView(context: Context) : PlayerView(context) {
         return super.dispatchKeyEvent(event)
     }
 
-    private companion object {
-        val PLAYER_KEYS = setOf(
-            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
-            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
-            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER,
-            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE,
-            KeyEvent.KEYCODE_MEDIA_REWIND, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
-            KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_MEDIA_STOP,
-        )
-    }
 }

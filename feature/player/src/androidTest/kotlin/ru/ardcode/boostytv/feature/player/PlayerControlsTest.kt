@@ -1,5 +1,6 @@
 package ru.ardcode.boostytv.feature.player
 
+import android.content.Context
 import android.graphics.Rect
 import android.os.Looper
 import android.os.SystemClock
@@ -12,13 +13,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
+import androidx.activity.ComponentDialog
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.Player
+import androidx.media3.common.MediaItem
 import androidx.media3.common.SimpleBasePlayer
+import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerControlView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -29,6 +31,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,6 +44,37 @@ class PlayerControlsTest {
     private lateinit var view: TvPlayerView
     private var dismissed = false
     private val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+
+    @Before fun wakeDevice() { device.wakeUp() }
+
+    @Test fun realVideoRendersPausesAndResumesFromRemote() {
+        var renderedFrame = false
+        screen(createPlayer = { context ->
+            ExoPlayer.Builder(context).build().apply {
+                addListener(object : Player.Listener {
+                    override fun onRenderedFirstFrame() { renderedFrame = true }
+                })
+                setMediaItem(MediaItem.fromUri("asset:///remote-control-test.mp4"))
+                prepare()
+                playWhenReady = true
+            }
+        })
+        compose.waitUntil(timeoutMillis = 10_000) {
+            compose.runOnIdle { renderedFrame && view.player!!.isPlaying }
+        }
+        device.pressKeyCode(KeyEvent.KEYCODE_MEDIA_PAUSE)
+        compose.waitUntil(timeoutMillis = 3_000) { compose.runOnIdle { !view.player!!.isPlaying } }
+        val pausedAt = compose.runOnIdle { view.player!!.currentPosition }
+        SystemClock.sleep(600)
+        compose.runOnIdle {
+            assertEquals("Decoded video stays paused", pausedAt, view.player!!.currentPosition)
+            assertFalse("Pause never closes playback", dismissed)
+        }
+        device.pressKeyCode(KeyEvent.KEYCODE_MEDIA_PLAY)
+        compose.waitUntil(timeoutMillis = 3_000) {
+            compose.runOnIdle { view.player!!.isPlaying && view.player!!.currentPosition > pausedAt + 300 }
+        }
+    }
 
     @Test fun playerAddedAfterLoadingAcceptsPauseSeekAndDpad() {
         screen(afterLoading = true)
@@ -63,16 +97,17 @@ class PlayerControlsTest {
         compose.runOnIdle { assertFalse("Transport keys do not dismiss video", dismissed) }
     }
 
-    @Test fun composeHostForwardsPlayerKeysWithoutInterceptingSystemKeys() {
-        val hostFocus = FocusRequester()
-        screen(afterLoading = true, hostModifier = Modifier.focusRequester(hostFocus))
-        compose.runOnIdle {
-            hostFocus.requestFocus()
-            assertFalse("Reproduce the native player losing focus", view.hasFocus())
-            val now = SystemClock.uptimeMillis()
-            assertFalse(view.dispatchKeyEventFromHost(KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_HOME, 0)))
-            assertFalse(view.dispatchKeyEventFromHost(KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_VOLUME_UP, 0)))
+    @Test fun secondaryWindowDoesNotBreakNativeFocusOrPause() {
+        screen(afterLoading = true)
+        val secondary = compose.runOnIdle {
+            ComponentDialog(view.context).apply {
+                setContentView(Button(context).apply { text = "Secondary window" })
+                show()
+            }
         }
+        compose.waitUntil(timeoutMillis = 3_000) { compose.runOnIdle { !view.hasWindowFocus() } }
+        compose.runOnIdle { secondary.dismiss() }
+        compose.waitUntil(timeoutMillis = 3_000) { compose.runOnIdle { view.hasWindowFocus() && view.hasFocus() } }
         device.pressKeyCode(KeyEvent.KEYCODE_MEDIA_PAUSE)
         compose.waitUntil(timeoutMillis = 3_000) { compose.runOnIdle { !view.player!!.playWhenReady } }
         compose.runOnIdle { assertTrue("Native player regains focus", view.hasFocus()) }
@@ -178,7 +213,10 @@ class PlayerControlsTest {
         }
     }
 
-    private fun screen(afterLoading: Boolean = false, hostModifier: Modifier = Modifier) {
+    private fun screen(
+        afterLoading: Boolean = false,
+        createPlayer: (Context) -> Player = { TestPlayer() },
+    ) {
         var ready by mutableStateOf(!afterLoading)
         compose.setContent {
             var open by androidx.compose.runtime.remember { mutableStateOf(true) }
@@ -187,16 +225,22 @@ class PlayerControlsTest {
                 properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
             ) {
                 if (!ready) Box(Modifier.fillMaxSize()) else TvPlayerHost(
+                    onDismiss = { dismissed = true; open = false },
                     factory = { context ->
                         TvPlayerView(context).apply {
                             view = this
-                            player = TestPlayer()
+                            player = createPlayer(context)
+                            // Back tests must not race Media3's independent 5s
+                            // auto-hide timer while UiAutomator waits for idle.
+                            // The timeout test explicitly enables its own timer.
+                            controllerShowTimeoutMs = 0
+                            keepScreenOn = true
                             applyPlayerAppearance(this, "Тестовое видео")
                             showController()
                         }
                     },
                     onRelease = { it.player?.release(); it.player = null },
-                    modifier = Modifier.fillMaxSize().then(hostModifier),
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
         }
@@ -210,7 +254,7 @@ class PlayerControlsTest {
             compose.waitUntil(timeoutMillis = 5_000) {
                 compose.runOnIdle { ::view.isInitialized && view.hasWindowFocus() && view.hasFocus() }
             }
-        } catch (error: Exception) {
+        } catch (error: androidx.compose.ui.test.ComposeTimeoutException) {
             val detail = compose.runOnIdle {
                 if (!::view.isInitialized) "Player was never created" else
                     "attached=${view.isAttachedToWindow}, windowFocus=${view.hasWindowFocus()}, " +

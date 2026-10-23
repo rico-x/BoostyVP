@@ -30,6 +30,7 @@ import kotlinx.coroutines.isActive
 fun PlayerScreen(
     blogUrl: String,
     postId: String,
+    onClose: () -> Unit = {},
     viewModel: PlayerViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(blogUrl, postId) { viewModel.load(blogUrl, postId) }
@@ -55,6 +56,7 @@ fun PlayerScreen(
         )
 
         is PlayerUiState.Ready -> VideoSurface(
+            onClose = onClose,
             state = current,
             onProgress = { position, duration -> viewModel.onProgress(current, position, duration) },
             onEnded = { viewModel.onPlaybackEnded(current) },
@@ -65,6 +67,7 @@ fun PlayerScreen(
 @Composable
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 private fun VideoSurface(
+    onClose: () -> Unit,
     state: PlayerUiState.Ready,
     onProgress: (Long, Long) -> Unit,
     onEnded: () -> Unit,
@@ -147,6 +150,7 @@ private fun VideoSurface(
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (playbackError == null) TvPlayerHost(
+            onDismiss = onClose,
             factory = { ctx ->
                 val view = TvPlayerView(ctx)
                 view.apply {

@@ -130,15 +130,16 @@ fun BoostyNavHost(
             )
         }
 
-        playerDestination()
+        playerDestination(onClose = { navController.popBackStack() })
     }
 }
 
 // Keep the previous screen composed underneath, including its loaded pages,
 // scroll offsets and focus nodes. Content is replaceable for navigation tests.
 internal fun NavGraphBuilder.playerDestination(
+    onClose: () -> Unit = {},
     content: @Composable (String, String) -> Unit = { blog, post ->
-        PlayerScreen(blogUrl = blog, postId = post)
+        PlayerScreen(blogUrl = blog, postId = post, onClose = onClose)
     },
 ) {
     dialog(
