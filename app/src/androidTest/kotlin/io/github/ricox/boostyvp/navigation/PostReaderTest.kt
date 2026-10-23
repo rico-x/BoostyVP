@@ -88,6 +88,27 @@ class PostReaderTest {
         compose.onNodeWithTag("comments_toggle").assertIsNotEnabled()
     }
 
+    @Test fun wideImageStaysInsideItsItemAndNeverOverlapsParagraphs() = assertImageLayout(1600, 900)
+    @Test fun portraitImageStaysInsideItsItemAndNeverOverlapsParagraphs() = assertImageLayout(600, 1200)
+
+    private fun assertImageLayout(width: Int, height: Int) {
+        screen(value = article.copy(blocks = listOf(
+            ContentBlock.Text("Перед иллюстрацией", null),
+            ContentBlock.Image("image", "http://127.0.0.1:9/test-wide.png", width, height),
+            ContentBlock.Text("После иллюстрации", null),
+        )))
+        val image = compose.onNodeWithTag("reader_image_content").fetchSemanticsNode().boundsInRoot
+        val item = compose.onNodeWithTag("reader_image").fetchSemanticsNode().boundsInRoot
+        val before = compose.onNodeWithText("Перед иллюстрацией").fetchSemanticsNode().boundsInRoot
+        val after = compose.onNodeWithText("После иллюстрации").fetchSemanticsNode().boundsInRoot
+        assertTrue("Image draws only in its measured item", image.top >= item.top && image.bottom <= item.bottom)
+        assertTrue("Previous paragraph ends before the image", before.bottom <= image.top)
+        assertTrue("Next paragraph starts below the image", after.top >= image.bottom)
+        val density = InstrumentationRegistry.getInstrumentation().targetContext.resources.displayMetrics.density
+        assertTrue(image.height <= 280f * density + 1)
+        assertTrue(compose.onNodeWithTag("post_reader").fetchSemanticsNode().boundsInRoot.width <= 720f * density + 1)
+    }
+
     private fun screen(value: Post = article, expandedInitially: Boolean = false) {
         compose.setContent {
             BoostyVPTheme {

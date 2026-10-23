@@ -4,6 +4,7 @@ package io.github.ricox.boostyvp.core.ui.appearance
 data class InterfaceOptions(
     val autoCollapseSidebar: Boolean = true,
     val textSize: CardTextSize = CardTextSize.Normal,
+    val metadataSize: CardMetadataSize = CardMetadataSize.FollowTitle,
     val titleLines: Int = 2,
     val showAuthor: Boolean = true,
     val showDate: Boolean = true,
@@ -28,6 +29,15 @@ data class InterfaceOptions(
     fun normalized() = copy(titleLines = titleLines.takeIf { it in 1..3 } ?: 2,
         focusWidth = focusWidth.takeIf { it in 1..4 } ?: 3)
     fun showsAuthor(inAuthorRow: Boolean) = showAuthor && !(inAuthorRow && hideRepeatedAuthor)
+    val metadataSp: Int get() = metadataSize.sp ?: textSize.metadataSp
+}
+
+/** FollowTitle preserves every existing title/metadata combination on upgrade. */
+enum class CardMetadataSize(val id: String, val label: String, val sp: Int?) {
+    FollowTitle("follow_title", "Как раньше", null),
+    Smallest("smallest", "10 sp", 10), Small("small", "11 sp", 11),
+    Normal("normal", "12 sp", 12), Large("large", "14 sp", 14), Largest("largest", "16 sp", 16);
+    companion object { fun fromId(id: String?) = entries.firstOrNull { it.id == id } ?: FollowTitle }
 }
 
 /** Card text stays the same size when the thumbnail size changes. */
@@ -67,6 +77,7 @@ enum class CatalogDensity(
 object BrowseDimensions {
     const val ExpandedSidebarDp = 192
     const val CollapsedSidebarDp = 112
+    /** Modal expansion overlays the catalog, so its viewport never changes on focus. */
     fun contentSidebarWidth(options: InterfaceOptions): Int =
         if (options.autoCollapseSidebar) CollapsedSidebarDp else ExpandedSidebarDp
 }

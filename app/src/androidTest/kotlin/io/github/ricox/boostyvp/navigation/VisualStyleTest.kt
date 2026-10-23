@@ -91,11 +91,12 @@ class VisualStyleTest {
             PostCard(post("b", "Другое название"), {}, Modifier.testTag("b"))
         } } }
         focus("a")
+        compose.waitUntilExactlyOneExists(hasTestTag("focused_full_title"), 3_000)
         compose.onNodeWithTag("focused_full_title").assertTextEquals(long).assertIsDisplayed()
         compose.onNodeWithTag("a").assertIsFocused()
         device.takeScreenshot(File(context.getExternalFilesDir(null), "visual-full-title.png"))
         key("a", Key.DirectionRight)
-        compose.onNodeWithTag("focused_full_title").assertTextEquals("Другое название")
+        compose.onNodeWithTag("focused_full_title").assertDoesNotExist()
         compose.onNodeWithTag("b").assertIsFocused()
         compose.runOnIdle { prefs.save(prefs.load().copy(fullTitle = false)) }
         compose.onNodeWithTag("focused_full_title").assertDoesNotExist()
@@ -106,15 +107,17 @@ class VisualStyleTest {
         prefs.save(InterfaceOptions(fullTitle = true))
         var open by mutableStateOf(false)
         compose.setContent { BoostyVPTheme {
-            PostCard(post("a", "Полное название"), { open = true }, Modifier.testTag("a"))
+            PostCard(post("a", "Очень длинное полное название публикации ".repeat(5)), { open = true }, Modifier.testTag("a"))
             if (open) Dialog(onDismissRequest = { open = false }) { TvActionButton("Закрыть окно", { open = false }) }
         } }
         focus("a")
+        compose.waitUntilExactlyOneExists(hasTestTag("focused_full_title"), 3_000)
         key("a", Key.DirectionCenter)
         compose.onNodeWithTag("focused_full_title").assertDoesNotExist()
         device.pressBack()
         compose.waitForIdle()
         compose.onNodeWithTag("a").assertIsFocused()
+        compose.waitUntilExactlyOneExists(hasTestTag("focused_full_title"), 3_000)
         compose.onNodeWithTag("focused_full_title").assertIsDisplayed()
     }
 
@@ -166,15 +169,20 @@ class VisualStyleTest {
 
     @Test fun newSettingsAreReachableByRemoteAndSaved() {
         compose.setContent { BoostyVPTheme { InterfaceSettingsDialog {} } }
-        val settings = listOf("card_style", "focus_color", "focus_width", "focus_zoom", "focus_animation",
-            "full_title", "author_header", "theme", "accent", "player_layout", "player_text",
-            "player_seek_bar", "player_clock", "player_end_time")
-        settings.forEach { suffix ->
+        val settings = mapOf("catalog" to listOf("card_style"),
+            "focus" to listOf("focus_color", "focus_width", "focus_zoom", "focus_animation", "full_title"),
+            "author" to listOf("author_header"), "theme" to listOf("theme", "accent"),
+            "player" to listOf("player_layout", "player_text", "player_seek_bar", "player_clock", "player_end_time"))
+        settings.forEach { (category, options) ->
+          focus("interface_category_$category")
+          key("interface_category_$category", Key.DirectionCenter)
+          options.forEach { suffix ->
             val tag = "interface_$suffix"
             compose.onNodeWithTag("interface_settings_list").performScrollToNode(hasTestTag(tag))
             focus(tag)
             key(tag, Key.DirectionRight)
             compose.onNodeWithTag(tag).assertIsFocused()
+          }
         }
         val result = prefs.load()
         assertEquals(CardStyle.Light, result.cardStyle)

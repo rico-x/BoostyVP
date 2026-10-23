@@ -19,6 +19,7 @@ import androidx.media3.ui.PlayerView
 import io.github.ricox.boostyvp.core.ui.R as UiR
 import io.github.ricox.boostyvp.core.ui.appearance.InterfacePreferences
 import io.github.ricox.boostyvp.core.ui.appearance.PlayerPanelLayout
+import io.github.ricox.boostyvp.core.ui.appearance.PlayerPanelMetrics
 
 internal fun Context.playerDp(value: Int) = (value * resources.displayMetrics.density).toInt()
 
@@ -64,7 +65,7 @@ internal fun applyPlayerAppearance(playerView: PlayerView, title: String) {
         (layoutParams as? FrameLayout.LayoutParams)?.let { params ->
             params.leftMargin = context.playerDp(48)
             params.rightMargin = context.playerDp(48)
-            params.bottomMargin = context.playerDp(88)
+            params.bottomMargin = context.playerDp(PlayerPanelMetrics.ProgressBottomDp)
             layoutParams = params
         }
     }
@@ -81,7 +82,7 @@ internal fun applyPlayerAppearance(playerView: PlayerView, title: String) {
         (layoutParams as? FrameLayout.LayoutParams)?.let { params ->
             params.gravity = if (options.playerLayout == PlayerPanelLayout.Lower)
                 Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL else Gravity.CENTER
-            params.bottomMargin = if (options.playerLayout == PlayerPanelLayout.Lower) context.playerDp(140) else 0
+            params.bottomMargin = if (options.playerLayout == PlayerPanelLayout.Lower) context.playerDp(PlayerPanelMetrics.LowerTransportMarginDp) else 0
             layoutParams = params
         }
     }
@@ -126,7 +127,7 @@ internal fun applyPlayerAppearance(playerView: PlayerView, title: String) {
         }
         controls.addView(TextView(context).apply {
             text = title
-            textSize = 26f
+            textSize = PlayerPanelMetrics.TitleSp.toFloat()
             setTextColor(context.getColor(UiR.color.boostyvp_text))
             typeface = Typeface.create("sans-serif", Typeface.BOLD)
             maxLines = 2

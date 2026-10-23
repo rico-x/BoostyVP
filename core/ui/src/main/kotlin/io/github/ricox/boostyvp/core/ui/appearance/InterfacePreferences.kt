@@ -18,6 +18,7 @@ class InterfacePreferences(context: Context) {
     fun load() = InterfaceOptions(
         autoCollapseSidebar = prefs.getBoolean("sidebar_auto_collapse", true),
         textSize = CardTextSize.fromId(prefs.getString("card_text_size", null)),
+        metadataSize = CardMetadataSize.fromId(prefs.getString("card_metadata_size", null)),
         titleLines = prefs.getInt("card_title_lines", 2),
         showAuthor = prefs.getBoolean("card_show_author", true),
         showDate = prefs.getBoolean("card_show_date", true),
@@ -45,6 +46,7 @@ class InterfacePreferences(context: Context) {
         // Never clear this file: card_size belongs to the existing size selector.
         prefs.edit().putBoolean("sidebar_auto_collapse", safe.autoCollapseSidebar)
             .putString("card_text_size", safe.textSize.id)
+            .putString("card_metadata_size", safe.metadataSize.id)
             .putInt("card_title_lines", safe.titleLines)
             .putBoolean("card_show_author", safe.showAuthor)
             .putBoolean("card_show_date", safe.showDate)

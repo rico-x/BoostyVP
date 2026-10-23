@@ -3,6 +3,7 @@ package io.github.ricox.boostyvp.core.ui.theme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -28,6 +29,9 @@ private val BoostyTypography = Typography().let {
         labelLarge = it.labelLarge.copy(fontWeight = FontWeight.SemiBold),
     )
 }
+
+/** Accent for small text/outlines, distinct from the saturated brand fill. */
+val LocalAccentText = staticCompositionLocalOf { Color(0xFFFF7C82) }
 
 /** Shared resource colors also theme the native Media3 controls. */
 @Composable
@@ -63,7 +67,8 @@ private fun StyledContent(content: @Composable () -> Unit) {
         ),
     ) {
         ProvideCardSize {
-            CompositionLocalProvider(LocalContentColor provides scheme.onBackground, content = content)
+            CompositionLocalProvider(LocalContentColor provides scheme.onBackground,
+                LocalAccentText provides Color(options.accent.textArgb), content = content)
         }
     }
 }

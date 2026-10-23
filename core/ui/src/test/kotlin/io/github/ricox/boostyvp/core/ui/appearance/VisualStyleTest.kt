@@ -2,6 +2,7 @@ package io.github.ricox.boostyvp.core.ui.appearance
 
 import org.junit.Assert.*
 import org.junit.Test
+import kotlin.math.pow
 
 class VisualStyleTest {
     @Test fun newDefaultsPreserveExistingLook() {
@@ -44,5 +45,29 @@ class VisualStyleTest {
         assertEquals(3, InterfaceOptions(focusWidth = 0).normalized().focusWidth)
         assertEquals(3, InterfaceOptions(focusWidth = Int.MAX_VALUE).normalized().focusWidth)
         (1..4).forEach { assertEquals(it, InterfaceOptions(focusWidth = it).normalized().focusWidth) }
+    }
+
+    @Test fun textAccentsHaveContrastOnEveryDarkSurfaceWithoutChangingBrandFills() {
+        fun luminance(argb: Int): Double {
+            val rgb = listOf(16, 8, 0).map { ((argb ushr it) and 255) / 255.0 }
+                .map { if (it <= 0.04045) it / 12.92 else ((it + 0.055) / 1.055).pow(2.4) }
+            return rgb.zip(listOf(0.2126, 0.7152, 0.0722)).sumOf { (a, b) -> a * b }
+        }
+        DarkTheme.entries.forEach { theme -> AccentColor.entries.forEach { accent ->
+            listOf(theme.background, theme.surface, theme.raised).forEach { background ->
+                val a = luminance(accent.textArgb); val b = luminance(background)
+                assertTrue("${accent.id} on ${theme.id}", (maxOf(a, b) + 0.05) / (minOf(a, b) + 0.05) >= 4.5)
+            }
+        } }
+        assertEquals(0xFFD64045.toInt(), AccentColor.Red.argb)
+    }
+
+    @Test fun independentMetadataRetainsLegacySizesUntilExplicitlySelected() {
+        CardTextSize.entries.forEach { title ->
+            assertEquals(title.metadataSp, InterfaceOptions(textSize = title).metadataSp)
+            assertEquals(12, InterfaceOptions(textSize = title, metadataSize = CardMetadataSize.Normal).metadataSp)
+        }
+        assertEquals(CardMetadataSize.FollowTitle, CardMetadataSize.fromId("future_unknown"))
+        CardMetadataSize.entries.forEach { assertEquals(it, CardMetadataSize.fromId(it.id)) }
     }
 }

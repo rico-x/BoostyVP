@@ -33,6 +33,8 @@ enum class AccentColor(val id: String, val label: String, val argb: Int) {
     Amber("amber", "Янтарный", 0xFFE9BB61.toInt());
     // Black text on light accents retains contrast; the original red uses white.
     val onArgb: Int get() = if (this == Red) 0xFFFFFFFF.toInt() else 0xFF101114.toInt()
+    /** Small text / focus outlines need more contrast than a brand-colored fill. */
+    val textArgb: Int get() = if (this == Red) 0xFFFF7C82.toInt() else argb
     companion object { fun fromId(id: String?) = entries.firstOrNull { it.id == id } ?: Red }
 }
 
@@ -44,4 +46,13 @@ enum class PlayerPanelLayout(val id: String, val label: String) {
 enum class PlayerTextSize(val id: String, val label: String, val timeSp: Int) {
     Normal("normal", "Обычный", 15), Large("large", "Крупный", 19), Largest("largest", "Очень крупный", 23);
     companion object { fun fromId(id: String?) = entries.firstOrNull { it.id == id } ?: Normal }
+}
+
+/** Shared geometry for the native player and its non-playing settings preview. */
+object PlayerPanelMetrics {
+    const val LowerTransportMarginDp = 108
+    const val ProgressBottomDp = 88
+    const val TitleSp = 24
+    const val ClockSp = 14
+    const val EndTimeSp = 12
 }

@@ -145,9 +145,9 @@ internal class VideoQualityController(
                 listView.selector = GradientDrawable().apply {
                     setColor(appearance.theme.raised)
                     cornerRadius = playerView.context.playerDp(12).toFloat()
-                    setStroke(playerView.context.playerDp(2), appearance.accent.argb)
+                    setStroke(playerView.context.playerDp(2), appearance.accent.textArgb)
                 }
-                getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(appearance.accent.argb)
+                getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(appearance.accent.textArgb)
             }
     }
 

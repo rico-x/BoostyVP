@@ -30,6 +30,7 @@ import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import io.github.ricox.boostyvp.core.ui.theme.LocalAccentText
 
 @Composable
 fun ScreenBackdrop(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
@@ -113,8 +114,8 @@ fun StatusChip(text: String, modifier: Modifier = Modifier, icon: ImageVector? =
             .padding(horizontal = 10.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (icon != null) Icon(icon, null, tint = colors.primary, modifier = Modifier.size(16.dp))
-        Text(text, style = MaterialTheme.typography.labelMedium, color = colors.primary)
+        if (icon != null) Icon(icon, null, tint = LocalAccentText.current, modifier = Modifier.size(16.dp))
+        Text(text, style = MaterialTheme.typography.labelMedium, color = LocalAccentText.current)
     }
 }
 

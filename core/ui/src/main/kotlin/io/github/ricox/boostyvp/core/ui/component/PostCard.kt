@@ -10,6 +10,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -39,6 +40,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Icon
@@ -51,40 +53,55 @@ import io.github.ricox.boostyvp.core.ui.appearance.LocalInterfaceOptions
 import io.github.ricox.boostyvp.core.ui.appearance.CardStyle
 import io.github.ricox.boostyvp.core.ui.appearance.FocusColor
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.KeyEventType
+import io.github.ricox.boostyvp.core.ui.theme.LocalAccentText
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 @Composable
-fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier, inAuthorRow: Boolean = false) {
+fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier, inAuthorRow: Boolean = false,
+    previewFocused: Boolean = false, horizontal: Boolean = false) {
     val colors = MaterialTheme.colorScheme
     val size = LocalCardSize.current
     val options = LocalInterfaceOptions.current
     val textSize = options.textSize
     val compact = size.widthDp < 216
     val metadataStyle = MaterialTheme.typography.bodySmall.copy(
-        fontSize = textSize.metadataSp.sp, lineHeight = (textSize.metadataSp + 4).sp)
+        fontSize = options.metadataSp.sp, lineHeight = (options.metadataSp + 4).sp)
     val shape = RoundedCornerShape(8.dp)
     var focused by remember { mutableStateOf(false) }
-    val zoom by animateFloatAsState(if (focused && options.focusZoom) 1.02f else 1f,
+    var titleOverflow by remember(post.id, post.title) { mutableStateOf(false) }
+    var titleReader by remember(post.id) { mutableStateOf(false) }
+    val highlighted = focused || previewFocused
+    val zoom by animateFloatAsState(if (highlighted && options.focusZoom) 1.02f else 1f,
         animationSpec = if (options.animateFocus) tween(120) else snap(), label = "cardFocus")
     val light = options.cardStyle == CardStyle.Light
-    val frame = if (options.focusColor == FocusColor.Accent) colors.primary else colors.onSurface
+    val frame = if (options.focusColor == FocusColor.Accent) LocalAccentText.current else colors.onSurface
+    val measurer = rememberTextMeasurer()
     val date = remember(post.publishedAt) {
         if (post.publishedAt > 0) SimpleDateFormat("d MMM", Locale.forLanguageTag("ru"))
             .format(Date(post.publishedAt * 1000L)) else ""
     }
     // Own the focus transition so "no animation" really snaps instead of retaining
     // the TV Card's internal scale animation. Keep one stable clickable focus node.
-    Column(modifier.width(size.widthDp.dp).onFocusChanged { focused = it.isFocused }
+    Column(modifier.width(if (horizontal) 380.dp else size.widthDp.dp).onFocusChanged { focused = it.isFocused }
+        .onPreviewKeyEvent {
+            if (it.nativeKeyEvent.keyCode == android.view.KeyEvent.KEYCODE_INFO && options.fullTitle && titleOverflow) {
+                if (it.type == KeyEventType.KeyDown) titleReader = true
+                true
+            } else false
+        }
         .scale(zoom).clip(shape)
-        .background(if (light) Color.Transparent else if (focused) colors.surfaceVariant else colors.surface)
-        .border(if (focused) options.focusWidth.dp else 1.dp,
-            if (focused) frame else if (light) Color.Transparent else colors.border.copy(alpha = 0.4f), shape)
+        .background(if (light) Color.Transparent else if (highlighted) colors.surfaceVariant else colors.surface)
+        .border(if (highlighted) options.focusWidth.dp else 1.dp,
+            if (highlighted) frame else if (light) Color.Transparent else colors.border.copy(alpha = 0.4f), shape)
         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null,
             role = Role.Button, onClick = onClick)) {
-        Column {
-            Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)
+        @Composable fun Thumbnail(thumbnailModifier: Modifier) {
+            Box(thumbnailModifier.aspectRatio(16f / 9f).clip(if (light || horizontal) shape else RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
                 .background(Brush.linearGradient(listOf(colors.surfaceVariant, colors.background)))) {
                 if (post.hasVideo) Icon(Icons.Default.PlayArrow, null, tint = colors.primary.copy(alpha = 0.5f),
                     modifier = Modifier.align(Alignment.Center).size(if (compact) 28.dp else 44.dp))
@@ -112,14 +129,27 @@ fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier, inA
                         .background(colors.primary, RoundedCornerShape(6.dp))
                         .padding(horizontal = 8.dp, vertical = 4.dp))
             }
-            Column(Modifier.padding((size.paddingDp + options.density.cardPaddingDeltaDp).dp),
+        }
+        @Composable fun Caption(captionModifier: Modifier) {
+            Column(captionModifier.padding((size.paddingDp + options.density.cardPaddingDeltaDp).dp),
                 verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 6.dp)) {
                 Text(post.title.ifBlank { "Без названия" }, style = MaterialTheme.typography.titleMedium.copy(
                     fontSize = textSize.titleSp.sp, lineHeight = (textSize.titleSp + 6).sp),
-                    minLines = options.titleLines, maxLines = options.titleLines, overflow = TextOverflow.Ellipsis)
+                    minLines = options.titleLines, maxLines = options.titleLines, overflow = TextOverflow.Ellipsis,
+                    onTextLayout = { titleOverflow = it.hasVisualOverflow })
                 val showAuthor = options.showsAuthor(inAuthorRow)
                 if (showAuthor || (options.showDate && date.isNotEmpty())) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 8.dp),
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                      val gap = if (compact) 4.dp else 8.dp
+                      val authorWidth = measurer.measure(post.blogTitle, metadataStyle, maxLines = 1).size.width
+                      val dateWidth = measurer.measure(date, metadataStyle, maxLines = 1).size.width
+                      val stack = showAuthor && options.showDate && date.isNotEmpty() &&
+                          authorWidth + dateWidth + with(androidx.compose.ui.platform.LocalDensity.current) { gap.toPx() } > constraints.maxWidth
+                      if (stack) Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                          Text(post.blogTitle, style = metadataStyle, color = colors.onSurfaceVariant,
+                              maxLines = 1, overflow = TextOverflow.Ellipsis)
+                          Text(date, style = metadataStyle, color = colors.onSurfaceVariant, maxLines = 1)
+                      } else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap),
                         verticalAlignment = Alignment.CenterVertically) {
                         if (showAuthor) Text(post.blogTitle, style = metadataStyle,
                             color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -127,18 +157,27 @@ fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier, inA
                         if (options.showDate && date.isNotEmpty()) Text(date, style = metadataStyle,
                             color = colors.onSurfaceVariant)
                     }
+                    }
                 }
             }
         }
+        if (horizontal) Row(verticalAlignment = Alignment.CenterVertically) {
+            Thumbnail(Modifier.width(124.dp).padding(8.dp))
+            Caption(Modifier.weight(1f))
+        } else Column {
+            Thumbnail(Modifier.fillMaxWidth())
+            Caption(Modifier.fillMaxWidth())
+        }
     }
-    if (focused && options.fullTitle) FocusedTitle(post.title.ifBlank { "Без названия" })
+    if (focused && titleOverflow && options.fullTitle && !previewFocused) FocusedTitle(post.title.ifBlank { "Без названия" })
+    if (titleReader) FullTitleDialog(post.title) { titleReader = false }
 }
 
 @Composable
 private fun BoxScope.Badge(icon: ImageVector?, label: String) {
     if (label.isBlank()) return
     val compact = LocalCardSize.current.widthDp < 216
-    val textSize = LocalInterfaceOptions.current.textSize
+    val metadataSp = LocalInterfaceOptions.current.metadataSp
     Row(Modifier.align(Alignment.BottomEnd).padding(if (compact) 4.dp else 10.dp)
         .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(6.dp))
         .padding(horizontal = if (compact) 4.dp else 8.dp, vertical = if (compact) 2.dp else 4.dp)
@@ -146,7 +185,7 @@ private fun BoxScope.Badge(icon: ImageVector?, label: String) {
         horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
         if (icon != null) Icon(icon, null, tint = Color.White, modifier = Modifier.size(if (compact) 10.dp else 14.dp))
         Text(label, style = MaterialTheme.typography.labelSmall.copy(
-            fontSize = textSize.metadataSp.sp, lineHeight = (textSize.metadataSp + 2).sp),
+            fontSize = metadataSp.sp, lineHeight = (metadataSp + 2).sp),
             color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

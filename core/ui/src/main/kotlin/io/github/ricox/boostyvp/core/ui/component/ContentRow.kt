@@ -39,6 +39,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import io.github.ricox.boostyvp.core.model.Post
 import io.github.ricox.boostyvp.core.ui.appearance.LocalInterfaceOptions
+import io.github.ricox.boostyvp.core.ui.theme.LocalAccentText
 import io.github.ricox.boostyvp.core.ui.theme.Overscan
 import kotlinx.coroutines.launch
 
@@ -56,6 +57,7 @@ fun PostRow(
     horizontalPadding: Dp = Overscan.Horizontal,
     titleModifier: Modifier = Modifier,
     menuFocus: FocusRequester? = null,
+    compactSingle: Boolean = false,
 ) {
     if (posts.isEmpty()) return
     val rowState = rememberLazyListState()
@@ -90,9 +92,9 @@ fun PostRow(
                             color = LocalContentColor.current.copy(alpha = 0.75f),
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    Text("Все публикации", style = MaterialTheme.typography.labelLarge, color = colors.primary)
+                    Text("Все публикации", style = MaterialTheme.typography.labelLarge, color = LocalAccentText.current)
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, null,
-                        tint = colors.primary, modifier = Modifier.size(20.dp))
+                        tint = LocalAccentText.current, modifier = Modifier.size(20.dp))
                 }
             }
         } else {
@@ -128,6 +130,7 @@ fun PostRow(
                     post,
                     onClick = { onPostClick(post) },
                     inAuthorRow = onTitleClick != null,
+                    horizontal = compactSingle && posts.size == 1,
                     modifier = if (index == 0) Modifier.focusRequester(firstPostFocus)
                         .focusProperties { if (menuFocus != null) left = menuFocus } else Modifier,
                 )

@@ -12,6 +12,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.max
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.RelativeSizeSpan
+import android.text.style.ForegroundColorSpan
+import io.github.ricox.boostyvp.core.ui.appearance.PlayerPanelMetrics
 
 /** Estimate only, respecting playback speed. Unknown/live durations have no ETA. */
 internal fun estimatedEndTimeMs(nowMs: Long, positionMs: Long, durationMs: Long, speed: Float): Long? {
@@ -26,7 +31,7 @@ internal fun attachPlayerClock(playerView: PlayerView, controls: PlayerControlVi
     val context = playerView.context
     val clock = TextView(context).apply {
         tag = "player_clock"
-        textSize = options.playerText.timeSp.toFloat()
+        textSize = PlayerPanelMetrics.ClockSp.toFloat()
         setTextColor(context.getColor(io.github.ricox.boostyvp.core.ui.R.color.boostyvp_text))
         gravity = Gravity.END
         isFocusable = false
@@ -41,7 +46,7 @@ internal fun attachPlayerClock(playerView: PlayerView, controls: PlayerControlVi
             if (clock.isShown) {
                 val now = System.currentTimeMillis()
                 val player = playerView.player
-                clock.text = buildList {
+                val value = buildList {
                     if (options.playerClock) add(format.format(Date(now)))
                     if (options.playerEndTime && player != null && !player.isCurrentMediaItemLive) {
                         if (!player.playWhenReady && player.duration > 0) add("Окончание: на паузе")
@@ -49,6 +54,15 @@ internal fun attachPlayerClock(playerView: PlayerView, controls: PlayerControlVi
                             ?.let { add("Окончание ≈ ${format.format(Date(it))}") }
                     }
                 }.joinToString("\n")
+                val secondaryStart = if (options.playerClock) value.indexOf('\n').let { if (it < 0) value.length else it + 1 } else 0
+                clock.text = SpannableString(value).apply {
+                    if (secondaryStart < length) {
+                        setSpan(RelativeSizeSpan(PlayerPanelMetrics.EndTimeSp.toFloat() / PlayerPanelMetrics.ClockSp),
+                            secondaryStart, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        setSpan(ForegroundColorSpan(context.getColor(io.github.ricox.boostyvp.core.ui.R.color.boostyvp_text_secondary)),
+                            secondaryStart, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    }
+                }
             }
             clock.postDelayed(this, 1_000)
         }

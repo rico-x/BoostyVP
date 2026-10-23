@@ -5,13 +5,15 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -25,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -49,6 +52,7 @@ import io.github.ricox.boostyvp.core.ui.component.BackButton
 import io.github.ricox.boostyvp.core.ui.component.ScreenBackdrop
 import io.github.ricox.boostyvp.core.ui.component.TvActionButton
 import io.github.ricox.boostyvp.core.ui.theme.Overscan
+import io.github.ricox.boostyvp.core.ui.theme.LocalAccentText
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -113,7 +117,8 @@ fun PostReaderLayout(
             LazyColumn(
                 state = list, contentPadding = PaddingValues(vertical = 12.dp, horizontal = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.weight(1f).fillMaxWidth().testTag("post_reader")
+                modifier = Modifier.weight(1f).widthIn(max = 720.dp).fillMaxWidth()
+                    .align(Alignment.CenterHorizontally).testTag("post_reader")
                     .focusRequester(reading).onFocusChanged { readingFocused = it.isFocused }
                     .onPreviewKeyEvent { event ->
                         if (!readingFocused) false else when (event.key) {
@@ -227,7 +232,7 @@ private fun CommentBody(comment: PostComment) {
     Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("${comment.authorName.ifBlank { "Пользователь" }} · ${readerDate(comment.createdAt)}",
-            style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            style = MaterialTheme.typography.titleMedium, color = LocalAccentText.current)
         val parts = remember(comment) { readerParts(comment.blocks) }
         if (parts.isEmpty()) ReaderText("Комментарий без текста")
         for (part in parts) ReaderPartView(part)
@@ -238,8 +243,14 @@ private fun CommentBody(comment: PostComment) {
 private fun ReaderPartView(part: ReaderPart) {
     when (part) {
         is ReaderPart.Paragraph -> ReaderText(part.text, part.heading)
-        is ReaderPart.Image -> AsyncImage(part.url, "Изображение публикации", contentScale = ContentScale.Fit,
-            modifier = Modifier.fillMaxWidth().heightIn(max = 340.dp).aspectRatio(part.ratio))
+        is ReaderPart.Image -> BoxWithConstraints(Modifier.fillMaxWidth().testTag("reader_image"),
+            contentAlignment = Alignment.Center) {
+            // Compute compatible bounds before measuring: fillMaxWidth + heightIn +
+            // aspectRatio can force an oversized child to draw across adjacent paragraphs.
+            val imageWidth = minOf(maxWidth, 280.dp * part.ratio)
+            AsyncImage(part.url, "Изображение публикации", contentScale = ContentScale.Fit,
+                modifier = Modifier.size(imageWidth, imageWidth / part.ratio).testTag("reader_image_content"))
+        }
     }
 }
 

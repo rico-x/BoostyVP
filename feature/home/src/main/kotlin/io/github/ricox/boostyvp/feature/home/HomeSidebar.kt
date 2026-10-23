@@ -68,7 +68,7 @@ internal fun HomeSidebar(
     val destination = Modifier.focusProperties { if (hasContent) right = contentFocus }
     Column(
         Modifier.width((if (expanded) BrowseDimensions.ExpandedSidebarDp else BrowseDimensions.CollapsedSidebarDp).dp)
-            .fillMaxHeight().background(Color.Black.copy(alpha = 0.18f))
+            .fillMaxHeight().background(MaterialTheme.colorScheme.background)
             .padding(start = Overscan.Horizontal, end = 16.dp, top = Overscan.Vertical, bottom = Overscan.Vertical)
             .testTag("home_sidebar")
             .semantics { stateDescription = if (expanded) "Развёрнуто" else "Свёрнуто" }

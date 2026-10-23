@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.focusGroup
@@ -30,6 +32,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.PagingData
@@ -37,10 +40,14 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.ricox.boostyvp.core.model.Post
 import io.github.ricox.boostyvp.core.ui.appearance.InterfaceSettingsDialog
 import io.github.ricox.boostyvp.core.ui.appearance.LocalInterfaceOptions
+import io.github.ricox.boostyvp.core.ui.appearance.BrowseDimensions
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Color
 import io.github.ricox.boostyvp.core.ui.component.EmptyState
 import io.github.ricox.boostyvp.core.ui.component.ErrorState
 import io.github.ricox.boostyvp.core.ui.component.LoadingState
 import io.github.ricox.boostyvp.core.ui.component.PostRow
+import io.github.ricox.boostyvp.core.ui.component.focusedTitleSpace
 import io.github.ricox.boostyvp.core.ui.component.ScreenBackdrop
 import io.github.ricox.boostyvp.core.ui.component.SignOutDialog
 import io.github.ricox.boostyvp.core.ui.theme.Overscan
@@ -126,7 +133,8 @@ fun HomeLayout(
     }
 
     ScreenBackdrop {
-        Row(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().padding(bottom = if (interfaceOptions.fullTitle) focusedTitleSpace() else 0.dp)) {
+          Box(Modifier.zIndex(1f)) {
             HomeSidebar(
                 section = section,
                 onSectionClick = { target ->
@@ -139,7 +147,10 @@ fun HomeLayout(
                 expanded = !interfaceOptions.autoCollapseSidebar || menuExpanded,
                 onMenuFocused = { menuExpanded = true },
             )
-            Column(Modifier.weight(1f)) {
+          }
+          Row(Modifier.fillMaxSize()) {
+            Spacer(Modifier.width(BrowseDimensions.contentSidebarWidth(interfaceOptions).dp))
+            Column(Modifier.weight(1f).testTag("catalog_viewport")) {
                 Column(Modifier.padding(start = 24.dp, end = Overscan.Horizontal,
                     top = Overscan.Vertical, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     val (title, subtitle) = when (section) {
@@ -150,15 +161,11 @@ fun HomeLayout(
                     Text(subtitle, style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                // This focus target stays attached even after the first author
-                // heading has been recycled by LazyColumn. Leaving it to the left
-                // from any card returns to the selected menu item.
                 Box(Modifier.weight(1f).focusRequester(contentFocus)
                     .onFocusChanged { if (it.hasFocus) menuExpanded = false }
                     .focusProperties {
                         exit = { if (it == FocusDirection.Left) menuFocus else FocusRequester.Default }
-                    }
-                    .focusGroup()) {
+                    }.focusGroup()) {
                     if (newItems != null) {
                         NewFeedContent(newItems, newGridState, onPostClick)
                     } else when (state) {
@@ -166,13 +173,12 @@ fun HomeLayout(
                         is HomeUiState.Error -> ErrorState(detail = state.message, onRetry = onRefresh)
                         is HomeUiState.NoSubscriptions -> EmptyState(
                             title = "Здесь будут ваши авторы",
-                            detail = "Подпишитесь на авторов на boosty.to — их публикации появятся на вашем ТВ.",
-                        )
-                        is HomeUiState.Content ->
-                            HomeContent(state, continueWatching, onPostClick, onBlogClick, menuFocus)
+                            detail = "Подпишитесь на авторов на boosty.to — их публикации появятся на вашем ТВ.")
+                        is HomeUiState.Content -> HomeContent(state, continueWatching, onPostClick, onBlogClick, menuFocus)
                     }
                 }
             }
+          }
         }
     }
 }
@@ -202,6 +208,7 @@ private fun HomeContent(
                 title = "Продолжить просмотр", posts = continueWatching, onPostClick = onPostClick,
                 horizontalPadding = 24.dp, titleModifier = Modifier.testTag("continue_watching"),
                 menuFocus = menuFocus,
+                compactSingle = true,
             )
         }
         items(items = rows, key = { it.blog.url }) { row ->

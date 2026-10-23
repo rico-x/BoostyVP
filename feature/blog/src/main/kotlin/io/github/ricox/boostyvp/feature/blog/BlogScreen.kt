@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -25,7 +26,12 @@ import io.github.ricox.boostyvp.core.ui.component.ErrorState
 import io.github.ricox.boostyvp.core.ui.component.LoadingState
 import io.github.ricox.boostyvp.core.ui.component.ScreenBackdrop
 import io.github.ricox.boostyvp.core.ui.component.ScreenHeading
+import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Text
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import io.github.ricox.boostyvp.core.ui.component.PostCard
+import io.github.ricox.boostyvp.core.ui.component.focusedTitleSpace
 import io.github.ricox.boostyvp.core.ui.theme.Overscan
 
 @Composable
@@ -81,7 +87,7 @@ fun BlogScreen(
                 top = Overscan.Vertical,
                 bottom = Overscan.Vertical,
             ),
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(bottom = if (LocalInterfaceOptions.current.fullTitle) focusedTitleSpace() else 0.dp),
         ) {
             // The header scrolls with the posts, leaving the entire TV viewport
             // available to the grid when navigating down with the remote.
@@ -89,7 +95,8 @@ fun BlogScreen(
                 BlogHeader(blog = blog, blogUrl = blogUrl, onBack = onBack)
             }
             item(key = "videos_heading", span = { GridItemSpan(maxLineSpan) }) {
-                ScreenHeading("Публикации автора")
+                Text("Публикации автора", style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.semantics { heading() })
             }
             if (posts.itemCount == 0) {
                 item(key = "blog_empty", span = { GridItemSpan(maxLineSpan) }) {
@@ -110,7 +117,7 @@ fun BlogScreen(
             ) { index ->
                 val post = posts[index]
                 if (post != null) {
-                    PostCard(post = post, onClick = { onPostClick(post) })
+                    PostCard(post = post, onClick = { onPostClick(post) }, inAuthorRow = true)
                 }
             }
             if (posts.loadState.append is LoadState.Error) {
