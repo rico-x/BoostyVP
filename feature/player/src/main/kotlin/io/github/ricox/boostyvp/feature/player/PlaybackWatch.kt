@@ -36,10 +36,28 @@ internal class StallDetector(
         return bufferingSince != null && bufferedMs + current >= limitMs
     }
 
+    /** A rejected (cooldown) request must keep watching the ongoing buffering. */
+    fun recoverIfStalled(nowMs: Long, refresh: () -> Boolean): Boolean {
+        if (!isStalled(nowMs)) return false
+        if (!refresh()) return false
+        reset()
+        return true
+    }
+
     fun reset() {
         windowStart = Long.MIN_VALUE
         bufferedMs = 0
         bufferingSince = null
+    }
+}
+
+/** One viewing session, shared by successive videos and link-recovery player views. */
+internal class PlaybackInteraction(initialInteractionAt: Long) {
+    var lastInteractionAt: Long = initialInteractionAt
+        private set
+
+    fun recordKey(atMs: Long) {
+        lastInteractionAt = atMs
     }
 }
 

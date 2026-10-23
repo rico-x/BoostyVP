@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
@@ -53,7 +54,8 @@ class VisualStyleTest {
 
     @Test fun allVisualPreferencesRoundTripWithoutResettingCardSizeOrPlayerTransport() {
         CardSizePreferences(context).save(CardSize.Small)
-        val visual = InterfaceOptions(cardStyle = CardStyle.Light, focusColor = FocusColor.Accent,
+        val visual = InterfaceOptions(metadataSize = CardMetadataSize.Large,
+            cardStyle = CardStyle.Light, focusColor = FocusColor.Accent,
             focusWidth = 4, focusZoom = false, animateFocus = false, fullTitle = true,
             authorHeader = AuthorHeaderSize.Minimal, theme = DarkTheme.Black, accent = AccentColor.Teal,
             playerLayout = PlayerPanelLayout.Lower, playerText = PlayerTextSize.Largest,
@@ -81,6 +83,25 @@ class VisualStyleTest {
         assertEquals("b", clicked)
         compose.runOnIdle { prefs.save(prefs.load().copy(cardStyle = CardStyle.Filled, animateFocus = true)) }
         compose.onNodeWithTag("b").assertIsFocused()
+    }
+
+    @Test fun metadataSizeChangesWithoutChangingTheTitleCoverOrFocus() {
+        CardSizePreferences(context).save(CardSize.Small)
+        prefs.save(InterfaceOptions(textSize = CardTextSize.Smallest))
+        compose.setContent { BoostyVPTheme {
+            PostCard(post("a", "Короткое название"), {}, Modifier.testTag("a"))
+        } }
+        focus("a")
+        fun textHeight(value: String) = compose.onNodeWithText(value, useUnmergedTree = true)
+            .fetchSemanticsNode().boundsInRoot.height
+        val title = textHeight("Короткое название")
+        val metadata = textHeight("Тестовый автор")
+        compose.runOnIdle { prefs.save(prefs.load().copy(metadataSize = CardMetadataSize.Largest)) }
+        compose.onNodeWithTag("a").assertIsFocused().assertWidthIsEqualTo(124.dp)
+        assertEquals(title, textHeight("Короткое название"))
+        assertTrue(textHeight("Тестовый автор") > metadata)
+        assertEquals(CardMetadataSize.Largest, InterfacePreferences(context).load().metadataSize)
+        assertEquals(CardTextSize.Smallest, InterfacePreferences(context).load().textSize)
     }
 
     @Test fun fullTitleIsStaticSelectedOnlyAndNeverStealsKeys() {
@@ -119,6 +140,50 @@ class VisualStyleTest {
         compose.onNodeWithTag("a").assertIsFocused()
         compose.waitUntilExactlyOneExists(hasTestTag("focused_full_title"), 3_000)
         compose.onNodeWithTag("focused_full_title").assertIsDisplayed()
+    }
+
+    @Test fun infoOpensTheWholeLongTitleAndBackReturnsToTheSameCard() {
+        prefs.save(InterfaceOptions(fullTitle = true))
+        var opened = 0
+        val title = "Название публикации с подробным описанием. ".repeat(150)
+        compose.setContent { BoostyVPTheme {
+            PostCard(post("a", title), { opened++ }, Modifier.testTag("a"))
+        } }
+        focus("a")
+        compose.waitUntilExactlyOneExists(hasTestTag("focused_full_title"), 3_000)
+        device.pressKeyCode(KeyEvent.KEYCODE_INFO)
+        compose.onNodeWithTag("full_title_dialog").assertIsDisplayed()
+        compose.onNodeWithTag("full_title_text").assertIsFocused().assertTextEquals(title)
+        compose.onNodeWithTag("focused_full_title").assertDoesNotExist()
+        val text = compose.onNodeWithTag("full_title_text")
+        fun scroll() = text.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value()
+        val before = scroll()
+        key("full_title_text", Key.DirectionDown)
+        assertTrue("Long titles can be read with the remote", scroll() > before)
+        device.pressBack()
+        compose.onNodeWithTag("full_title_dialog").assertDoesNotExist()
+        compose.onNodeWithTag("a").assertIsFocused()
+        key("a", Key.DirectionCenter)
+        assertEquals("INFO is read-only; OK keeps the card's normal action", 1, opened)
+    }
+
+    @Test fun eachSettingsCategoryHasItsOwnPreviewAndKeepsFocusOnTheControls() {
+        compose.setContent { BoostyVPTheme { InterfaceSettingsDialog {} } }
+        val previews = mapOf("catalog" to ("interface_card_size" to "interface_preview"),
+            "text" to ("interface_text_size" to "interface_preview"),
+            "focus" to ("interface_focus_color" to "interface_focus_preview"),
+            "author" to ("interface_author_header" to "interface_author_preview"),
+            "theme" to ("interface_theme" to "interface_theme_preview"),
+            "player" to ("interface_player_layout" to "interface_player_preview"))
+        previews.forEach { (category, tags) ->
+            focus("interface_category_$category")
+            key("interface_category_$category", Key.DirectionCenter)
+            compose.onNodeWithTag(tags.first).assertIsFocused()
+            compose.onNodeWithTag(tags.second).assertIsDisplayed()
+            key(tags.first, Key.DirectionUp)
+            compose.onNodeWithTag("interface_category_$category").assertIsFocused()
+            device.takeScreenshot(File(context.getExternalFilesDir(null), "visual-preview-$category.png"))
+        }
     }
 
     @Test fun fourAuthorHeadersReallyGetShorterAndBackStillWorks() {

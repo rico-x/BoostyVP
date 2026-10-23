@@ -43,11 +43,41 @@ class PlaybackWatchTest {
         assertFalse(stalls.isStalled(26_000))
     }
 
+    @Test fun `a rejected recovery keeps watching the same uninterrupted buffering`() {
+        val stalls = StallDetector()
+        stalls.bufferingStarted(0)
+        var requests = 0
+        assertFalse(stalls.recoverIfStalled(20_000) { requests++; false })
+        assertTrue("A cooldown must not erase the ongoing stall", stalls.isStalled(22_000))
+        assertTrue(stalls.recoverIfStalled(120_000) { requests++; true })
+        assertEquals(2, requests)
+        assertFalse("An accepted recovery resets the old player's watchdog", stalls.isStalled(122_000))
+    }
+
+    @Test fun `a recovered buffer does not request a refresh after the cooldown`() {
+        val stalls = StallDetector()
+        stalls.bufferingStarted(0)
+        assertFalse(stalls.recoverIfStalled(20_000) { false })
+        stalls.bufferingEnded(21_000)
+        assertFalse(stalls.recoverIfStalled(120_000) { error("Already playing") })
+    }
+
     @Test fun `sleep timer needs playback, a timer and enough quiet time`() {
         assertTrue(sleepTimerDue(nowMs = 3_600_000, lastInputMs = 0, timerMs = 3_600_000, playing = true))
         assertFalse(sleepTimerDue(nowMs = 3_599_999, lastInputMs = 0, timerMs = 3_600_000, playing = true))
         assertFalse("Already paused", sleepTimerDue(3_600_000, 0, 3_600_000, playing = false))
         assertFalse("Off", sleepTimerDue(10_000_000, 0, 0, playing = true))
+    }
+
+    @Test fun `one inactivity clock is retained across autoplay and recovery`() {
+        val session = PlaybackInteraction(0)
+        session.recordKey(1_000)
+        val nextVideo = session
+        assertFalse(sleepTimerDue(1_200_000, nextVideo.lastInteractionAt, 1_800_000, true))
+        val recoveredVideo = session
+        assertTrue(sleepTimerDue(1_801_000, recoveredVideo.lastInteractionAt, 1_800_000, true))
+        recoveredVideo.recordKey(1_801_000)
+        assertFalse(sleepTimerDue(1_802_000, nextVideo.lastInteractionAt, 1_800_000, true))
     }
 
     @Test fun `remembered quality never asks for more than was chosen`() {

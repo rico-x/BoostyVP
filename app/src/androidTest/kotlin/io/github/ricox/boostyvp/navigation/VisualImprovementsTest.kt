@@ -90,16 +90,20 @@ class VisualImprovementsTest {
         screen()
         focus("sidebar_subscriptions")
         val expanded = compose.onNodeWithTag("home_sidebar").fetchSemanticsNode().boundsInRoot.width
+        val viewport = compose.onNodeWithTag("catalog_viewport").fetchSemanticsNode().boundsInRoot
         key("sidebar_subscriptions", Key.DirectionRight)
         compose.onNodeWithText("Автор 0").assertIsFocused()
         val collapsed = compose.onNodeWithTag("home_sidebar").fetchSemanticsNode().boundsInRoot.width
         assertTrue(collapsed < expanded)
+        assertEquals("Menu overlays the catalog instead of resizing it", viewport,
+            compose.onNodeWithTag("catalog_viewport").fetchSemanticsNode().boundsInRoot)
         compose.onNodeWithContentDescription("Подписки").assertExists()
         compose.onNodeWithText("Подписки").assertDoesNotExist()
         compose.onNodeWithText("Автор 0").performKeyInput { pressKey(Key.DirectionLeft) }
         compose.onNodeWithTag("sidebar_subscriptions").assertIsFocused()
         compose.onNodeWithText("Подписки").assertIsDisplayed()
         assertEquals(expanded, compose.onNodeWithTag("home_sidebar").fetchSemanticsNode().boundsInRoot.width)
+        assertEquals(viewport, compose.onNodeWithTag("catalog_viewport").fetchSemanticsNode().boundsInRoot)
     }
 
     @Test fun autoCollapseCanBeDisabledWithoutChangingRemoteRoutes() {

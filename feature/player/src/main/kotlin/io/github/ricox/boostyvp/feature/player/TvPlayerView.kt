@@ -11,7 +11,10 @@ import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-internal class TvPlayerView(context: Context) : PlayerView(context) {
+internal class TvPlayerView(
+    context: Context,
+    private val interaction: PlaybackInteraction = PlaybackInteraction(SystemClock.uptimeMillis()),
+) : PlayerView(context) {
     private var hidingControlsOnBack = false
     private val restorePlaybackFocus = Runnable {
         // Request only after attachment/window focus, never during view construction.
@@ -35,8 +38,7 @@ internal class TvPlayerView(context: Context) : PlayerView(context) {
     private var onNextUpCancelled: (() -> Unit)? = null
 
     /** Uptime of the last remote key press; the sleep timer counts from it. */
-    var lastInteractionAt: Long = SystemClock.uptimeMillis()
-        private set
+    val lastInteractionAt: Long get() = interaction.lastInteractionAt
 
     // Without this the TV's screensaver starts over a long video nobody touches.
     private val screenOnListener = object : Player.Listener {
@@ -114,7 +116,7 @@ internal class TvPlayerView(context: Context) : PlayerView(context) {
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN) {
-            lastInteractionAt = event.eventTime
+            interaction.recordKey(event.eventTime)
             notice.hide()
         }
         if (dispatchNextUp(event)) return true

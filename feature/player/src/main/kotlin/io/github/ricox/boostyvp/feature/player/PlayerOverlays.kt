@@ -49,7 +49,7 @@ internal class NextUpOverlay(context: Context) : LinearLayout(context) {
         background = overlayBackground(context)
         val padding = context.playerDp(24)
         setPadding(padding, context.playerDp(18), padding, context.playerDp(20))
-        val accent = InterfacePreferences(context).load().accent.argb
+        val accent = InterfacePreferences(context).load().accent.textArgb
         heading.apply {
             text = "Далее"
             textSize = 16f

@@ -52,7 +52,9 @@ fun InterfaceSettingsDialog(onDismiss: () -> Unit) {
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 InterfaceSection.entries.forEach { target ->
-                    TvActionButton(target.label, { section = target }, Modifier.weight(1f)
+                    TvActionButton(target.label, {
+                        if (section == target) firstFocus.requestFocus() else section = target
+                    }, Modifier.weight(1f)
                         .focusRequester(tabFocus.getValue(target)).focusProperties { down = firstFocus }
                         .testTag("interface_category_${target.id}").semantics { selected = section == target },
                         primary = section == target)
@@ -105,7 +107,7 @@ private fun settingsFor(section: InterfaceSection, o: InterfaceOptions, save: (I
         InterfaceSection.Text -> listOf(
             VisualSetting("text_size", "Текст названия", CardTextSize.entries.map { it.label }, o.textSize.ordinal,
                 { save(o.copy(textSize = CardTextSize.entries[it])) }),
-            VisualSetting("metadata_size", "Размер метаданных", CardMetadataSize.entries.map { it.label }, o.metadataSize.ordinal,
+            VisualSetting("metadata_size", "Размер подписей", CardMetadataSize.entries.map { it.label }, o.metadataSize.ordinal,
                 { save(o.copy(metadataSize = CardMetadataSize.entries[it])) }),
             VisualSetting("title_lines", "Строк названия", listOf("1", "2", "3"), o.titleLines - 1,
                 { save(o.copy(titleLines = it + 1)) }),

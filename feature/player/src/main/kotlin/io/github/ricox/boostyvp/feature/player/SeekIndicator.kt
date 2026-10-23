@@ -42,7 +42,7 @@ internal class SeekIndicator(context: Context) : LinearLayout(context) {
         delta.apply {
             textSize = 30f
             typeface = Typeface.create("sans-serif", Typeface.BOLD)
-            setTextColor(appearance.accent.argb)
+            setTextColor(appearance.accent.textArgb)
         }
         time.apply {
             textSize = 18f

@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.*
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -25,10 +26,10 @@ internal fun FullTitleDialog(title: String, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(Modifier.widthIn(max = 800.dp).fillMaxWidth().heightIn(max = 440.dp)
-            .background(MaterialTheme.colorScheme.surface).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            .testTag("full_title_dialog").background(MaterialTheme.colorScheme.surface).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("Полное название · ↑ ↓ — читать · Назад — закрыть", style = MaterialTheme.typography.bodySmall)
             Text(title, style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f, fill = false).verticalScroll(scroll).focusRequester(focus)
+                modifier = Modifier.weight(1f, fill = false).verticalScroll(scroll).testTag("full_title_text").focusRequester(focus)
                     .onPreviewKeyEvent { event ->
                         if (event.key == Key.DirectionDown || event.key == Key.DirectionUp) {
                             if (event.type == KeyEventType.KeyDown) scope.launch {

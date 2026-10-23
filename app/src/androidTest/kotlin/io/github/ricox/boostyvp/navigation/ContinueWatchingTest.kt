@@ -7,6 +7,8 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertWidthIsEqualTo
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -26,6 +28,7 @@ import io.github.ricox.boostyvp.feature.home.HomeLayout
 import io.github.ricox.boostyvp.feature.home.HomeRow
 import io.github.ricox.boostyvp.feature.home.HomeUiState
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -64,6 +67,19 @@ class ContinueWatchingTest {
         compose.onNodeWithText("Начатое 1").performSemanticsAction(SemanticsActions.RequestFocus) { it() }
         compose.onNodeWithText("Начатое 1").performKeyInput { pressKey(Key.DirectionCenter) }
         compose.runOnIdle { assertEquals("started1", opened) }
+    }
+
+    @Test fun aSingleStartedVideoUsesACompactHorizontalCardWithoutChangingRemoteActions() {
+        screen(continueWatching = started.take(1))
+        compose.onNodeWithTag("sidebar_subscriptions").performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+        compose.onNodeWithTag("sidebar_subscriptions").performKeyInput { pressKey(Key.DirectionRight) }
+        val card = compose.onNodeWithText("Начатое 0").assertIsFocused().assertWidthIsEqualTo(380.dp)
+        val bounds = card.fetchSemanticsNode().boundsInRoot
+        assertTrue("One item must not consume a full video row", bounds.width > bounds.height * 2)
+        card.performKeyInput { pressKey(Key.DirectionCenter) }
+        compose.runOnIdle { assertEquals("started0", opened) }
+        card.performKeyInput { pressKey(Key.DirectionLeft) }
+        compose.onNodeWithTag("sidebar_subscriptions").assertIsFocused()
     }
 
     @Test fun withoutStartedVideosTheHomeIsUnchanged() {

@@ -5,6 +5,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -62,12 +65,21 @@ internal fun InterfacePreview(section: InterfaceSection, modifier: Modifier = Mo
                         modifier = Modifier.background(colors.surface, RoundedCornerShape(8.dp)).padding(12.dp))
                 }
                 InterfaceSection.Author -> ScaledPreview("interface_author_preview") {
-                    Column(Modifier.fillMaxSize().background(colors.background).padding(horizontal = 48.dp, vertical = 27.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        AuthorHeader(PreviewBlog, "author", {}, interactive = false)
-                        Text("Публикации автора", style = MaterialTheme.typography.titleLarge)
-                        Row(horizontalArrangement = Arrangement.spacedBy(o.density.horizontalGapDp.dp)) {
-                            repeat(6) { PostCard(PreviewPost.copy(id = "a$it"), {}, Modifier.focusProperties { canFocus = false }, inAuthorRow = true) }
+                    LazyVerticalGrid(columns = GridCells.Adaptive(LocalCardSize.current.widthDp.dp),
+                        modifier = Modifier.fillMaxSize().background(colors.background),
+                        contentPadding = PaddingValues(horizontal = 48.dp, vertical = 27.dp),
+                        horizontalArrangement = Arrangement.spacedBy(o.density.horizontalGapDp.dp),
+                        verticalArrangement = Arrangement.spacedBy(o.density.gridGapDp.dp),
+                        userScrollEnabled = false) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            AuthorHeader(PreviewBlog, "author", {}, interactive = false)
+                        }
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Text("Публикации автора", style = MaterialTheme.typography.titleLarge)
+                        }
+                        items(8) { index ->
+                            PostCard(PreviewPost.copy(id = "a$index"), {},
+                                Modifier.focusProperties { canFocus = false }, inAuthorRow = true)
                         }
                     }
                 }
@@ -82,8 +94,9 @@ internal fun InterfacePreview(section: InterfaceSection, modifier: Modifier = Mo
                         Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                             Text("Ваши подписки", style = MaterialTheme.typography.headlineSmall)
                             Text("Автор примера", style = MaterialTheme.typography.titleMedium)
-                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                repeat(4) { PostCard(PreviewPost.copy(id = "t$it"), {}, Modifier.focusProperties { canFocus = false }, previewFocused = it == 0) }
+                            LazyRow(userScrollEnabled = false, horizontalArrangement = Arrangement.spacedBy(o.density.horizontalGapDp.dp)) {
+                                items(4) { index -> PostCard(PreviewPost.copy(id = "t$index"), {},
+                                    Modifier.focusProperties { canFocus = false }, previewFocused = index == 0) }
                             }
                         }
                     }
@@ -94,7 +107,7 @@ internal fun InterfacePreview(section: InterfaceSection, modifier: Modifier = Mo
         val fontScale = LocalContext.current.resources.configuration.fontScale
         Text(when (section) {
             InterfaceSection.Catalog -> "Прежние размеры и плотность сохраняются. Меню раскрывается поверх каталога, не меняя обложки."
-            InterfaceSection.Text -> "Название: ${o.textSize.titleSp} sp · метаданные: ${o.metadataSp} sp.\nМасштаб шрифта ТВ: ${(fontScale * 100).toInt()}%. Для подписей рекомендуются 11–12 sp."
+            InterfaceSection.Text -> "Название: ${o.textSize.titleSp} sp · подписи: ${o.metadataSp} sp.\nМасштаб шрифта ТВ: ${(fontScale * 100).toInt()}%. Для подписей рекомендуются 11–12 sp."
             InterfaceSection.Focus -> "Превью не забирает пульт. Рекомендуемая рамка — 2 dp. Полное название появляется после остановки фокуса, только если оно обрезано."
             InterfaceSection.Author -> "${o.authorHeader.label}. Шапка показана тем же компонентом, что и на странице автора."
             InterfaceSection.Theme -> "Акцентные надписи светлее заливок для читаемости. Видео и его цвета не меняются."

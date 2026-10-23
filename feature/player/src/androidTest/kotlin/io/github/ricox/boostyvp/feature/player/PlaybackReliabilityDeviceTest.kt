@@ -114,6 +114,27 @@ class PlaybackReliabilityDeviceTest {
         compose.runOnIdle { assertFalse(view.isNextUpShown) }
     }
 
+    @Test fun backCancelsNextUpBeforeClosingThePlayer() {
+        screen()
+        var played = 0
+        var cancelled = 0
+        compose.runOnIdle {
+            view.showNextUp("Следующее", 2, onPlay = { played++ }, onCancel = {
+                cancelled++
+                view.showController()
+            })
+        }
+        device.pressBack()
+        compose.waitUntil(3_000) { compose.runOnIdle { cancelled == 1 } }
+        compose.runOnIdle {
+            assertTrue("Back cancels the offer, not the player", view.isAttachedToWindow)
+            assertFalse(view.isNextUpShown)
+            assertTrue(view.isControllerFullyVisible)
+        }
+        Thread.sleep(2_500)
+        compose.runOnIdle { assertEquals(0, played) }
+    }
+
     @Test fun theSleepNoticeGoesAwayOnTheNextKey() {
         screen()
         val before = compose.runOnIdle {
@@ -132,13 +153,29 @@ class PlaybackReliabilityDeviceTest {
         compose.runOnIdle { assertTrue("A key press restarts the sleep timer", view.lastInteractionAt > before) }
     }
 
+    @Test fun aNewPlayerViewKeepsTheSessionsLastRemotePress() {
+        val session = PlaybackInteraction(0)
+        screen(session)
+        device.pressDPadDown()
+        val lastInput = compose.runOnIdle { view.lastInteractionAt }
+        assertTrue(lastInput > 0)
+        compose.runOnIdle {
+            // Autoplay and link recovery construct the next view with the same session.
+            val replacement = TvPlayerView(view.context, session)
+            assertEquals(lastInput, replacement.lastInteractionAt)
+            assertTrue(sleepTimerDue(lastInput + 1_800_000, replacement.lastInteractionAt, 1_800_000, true))
+            session.recordKey(lastInput + 1_800_000)
+            assertFalse(sleepTimerDue(lastInput + 1_801_000, replacement.lastInteractionAt, 1_800_000, true))
+        }
+    }
+
     private fun nextUp() = view.findViewWithTag<NextUpOverlay>(NextUpOverlay.TAG)
     private fun notice() = view.findViewWithTag<PlayerNotice>(PlayerNotice.TAG)
 
     private fun texts(group: android.view.ViewGroup) =
         (0 until group.childCount).mapNotNull { (group.getChildAt(it) as? TextView)?.text?.toString() }
 
-    private fun screen() {
+    private fun screen(interaction: PlaybackInteraction = PlaybackInteraction(android.os.SystemClock.uptimeMillis())) {
         player = StatePlayer()
         compose.setContent {
             var open by remember { mutableStateOf(true) }
@@ -149,7 +186,7 @@ class PlaybackReliabilityDeviceTest {
                 TvPlayerHost(
                     onDismiss = { open = false },
                     factory = { context ->
-                        TvPlayerView(context).apply {
+                        TvPlayerView(context, interaction).apply {
                             view = this
                             this.player = this@PlaybackReliabilityDeviceTest.player
                             controllerShowTimeoutMs = 0

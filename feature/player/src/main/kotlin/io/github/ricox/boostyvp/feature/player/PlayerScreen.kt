@@ -38,6 +38,9 @@ fun PlayerScreen(
     onClose: () -> Unit = {},
     viewModel: PlayerViewModel = hiltViewModel(),
 ) {
+    // Keep the inactivity clock outside Ready/Loading: autoplay and a link refresh
+    // replace the player view but are not remote-control interaction.
+    val interaction = remember { PlaybackInteraction(SystemClock.uptimeMillis()) }
     LaunchedEffect(blogUrl, postId) { viewModel.load(blogUrl, postId) }
 
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -64,6 +67,7 @@ fun PlayerScreen(
         is PlayerUiState.Ready -> VideoSurface(
             onClose = onClose,
             state = current,
+            interaction = interaction,
             onProgress = { position, duration -> viewModel.onProgress(current, position, duration) },
             onEnded = { viewModel.onPlaybackEnded(current) },
             onRefresh = viewModel::refresh,
@@ -78,6 +82,7 @@ fun PlayerScreen(
 private fun VideoSurface(
     onClose: () -> Unit,
     state: PlayerUiState.Ready,
+    interaction: PlaybackInteraction,
     onProgress: (Long, Long) -> Unit,
     onEnded: () -> Unit,
     onRefresh: (positionMs: Long, force: Boolean) -> Boolean,
@@ -191,8 +196,7 @@ private fun VideoSurface(
     LaunchedEffect(player) {
         while (isActive) {
             delay(2_000)
-            if (stalls.isStalled(SystemClock.elapsedRealtime())) {
-                stalls.reset()
+            stalls.recoverIfStalled(SystemClock.elapsedRealtime()) {
                 refreshForPlayer(player.currentPosition.coerceAtLeast(0), false)
             }
         }
@@ -233,7 +237,7 @@ private fun VideoSurface(
         if (playbackError == null) TvPlayerHost(
             onDismiss = onClose,
             factory = { ctx ->
-                val view = TvPlayerView(ctx)
+                val view = TvPlayerView(ctx, interaction)
                 surface = view
                 view.apply {
                     this.player = player
