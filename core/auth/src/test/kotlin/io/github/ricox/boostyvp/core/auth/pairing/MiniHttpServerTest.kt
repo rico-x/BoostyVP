@@ -68,4 +68,36 @@ class MiniHttpServerTest {
             clients.forEach { it.close() }
         }
     }
+
+    @Test(timeout = 30_000) fun `a restart on the same port binds straight after stop`() {
+        // stop() runs while the accept thread is blocked in the system call; the
+        // port used to stay taken until that thread left it, so reopening the
+        // pairing screen on its fixed port could fail with "Address already in use".
+        val port = LanAddress.freePort()
+        // Busy cores, as on a CI runner compiling in parallel, delay the accept
+        // thread's exit and widen the window.
+        val load = busyCores()
+        try {
+            repeat(RESTARTS) { round ->
+                val server = MiniHttpServer(port) { HttpResponse.ok() }
+                try {
+                    server.start()
+                } catch (e: java.net.BindException) {
+                    fail("Restart $round of $RESTARTS: ${e.message}")
+                }
+                Thread.sleep(5)
+                server.stop()
+            }
+        } finally {
+            load.forEach { it.interrupt() }
+        }
+    }
+
+    private fun busyCores(): List<Thread> = List(Runtime.getRuntime().availableProcessors() * 2) {
+        Thread { while (!Thread.currentThread().isInterrupted) Unit }.apply { isDaemon = true; start() }
+    }
+
+    private companion object {
+        const val RESTARTS = 200
+    }
 }

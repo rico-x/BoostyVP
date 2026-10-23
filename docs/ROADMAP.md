@@ -345,7 +345,7 @@ OK, «Готово» или «Назад» закрывают окно, сохр
 |---|---|---|
 | При сбое Android Keystore токены молча пишутся в обычные preferences | `core/auth/EncryptedTokenStore.kt` | Не начато |
 | Страница `/link` отдаёт ключ сопряжения любому в локальной сети; сессия идёт по HTTP, поэтому её может расшифровать наблюдатель в той же сети | `core/auth/pairing/PairingServer.kt`, `PairingPage.kt` | Не начато |
-| Нестабильный тест перезапуска сервера сопряжения (не замоканный `android.util.Log`) | `PairingServerTest` | Не начато; не маскировать отключением |
+| Нестабильный тест перезапуска сервера сопряжения. Причина: `MiniHttpServer.stop()` возвращался, пока поток `accept` ещё держал порт, и повторный запуск на том же порту получал «Address already in use» (так же при повторном открытии входа на фиксированном 8765). Не замоканный `android.util.Log` скрывал исходную ошибку | `MiniHttpServer.kt`, `PairingServerTest` | Исправлено в ветке `fix/pairing-rebind`: `stop()` ждёт выхода потока `accept` (до 500 мс). Проверки: `MiniHttpServerTest` и `PairingRestartDeviceTest` (200 перезапусков под нагрузкой, до исправления падали 3/3 и на JVM, и на ТВ). `Log` в JVM-тестах по-прежнему не замокан |
 | versionCode не повышался; инструкция плеера указывала старую версию | `version.properties`, `app/build.gradle.kts`, `docs/player-input.md` | Исправлено для 0.0.3 по запросу подготовки выпуска; новый код 7, инструкция актуализирована |
 | User-Agent Chrome продублирован, хотя комментарий говорит об одном месте | `BoostyHeadersInterceptor.kt`, `MediaSourceFactory.kt` | Не начато |
 | Позиции просмотра не были привязаны к аккаунту | `core/data` | Готово в `13dd4c9` |

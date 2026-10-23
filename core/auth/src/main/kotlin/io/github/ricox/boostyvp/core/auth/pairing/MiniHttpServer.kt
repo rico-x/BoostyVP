@@ -73,6 +73,8 @@ internal class MiniHttpServer(
     @Volatile
     private var running = false
     private var serverSocket: ServerSocket? = null
+    @Volatile
+    private var acceptThread: Thread? = null
     private val clients = Collections.newSetFromMap(ConcurrentHashMap<Socket, Boolean>())
     private val workers = ThreadPoolExecutor(
         WORKER_THREADS, WORKER_THREADS, 0, TimeUnit.MILLISECONDS,
@@ -88,7 +90,7 @@ internal class MiniHttpServer(
         serverSocket = socket
         running = true
 
-        thread(isDaemon = true, name = "boosty-pairing-http") {
+        acceptThread = thread(isDaemon = true, name = "boosty-pairing-http") {
             while (running) {
                 val client = try {
                     socket.accept()
@@ -114,14 +116,30 @@ internal class MiniHttpServer(
         return socket.localPort
     }
 
-    @Synchronized
+    /**
+     * Returns once the port is free again. Closing the socket is not enough: the
+     * accept thread is blocked in the system call and keeps the listening socket
+     * alive until it leaves it, so an immediate restart on the same port --
+     * reopening the pairing screen -- failed with "Address already in use".
+     */
     fun stop() {
-        running = false
-        runCatching { serverSocket?.close() }
-        serverSocket = null
-        clients.forEach { runCatching { it.close() } }
-        workers.shutdownNow()
-        clients.clear()
+        val accepting = synchronized(this) {
+            running = false
+            runCatching { serverSocket?.close() }
+            serverSocket = null
+            clients.forEach { runCatching { it.close() } }
+            workers.shutdownNow()
+            clients.clear()
+            acceptThread.also { acceptThread = null }
+        }
+        // Outside the lock: the accept loop takes it to register a client.
+        if (accepting != null && accepting !== Thread.currentThread()) {
+            try {
+                accepting.join(ACCEPT_EXIT_TIMEOUT_MILLIS)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+        }
     }
 
     private fun handle(client: Socket) {
@@ -232,6 +250,8 @@ internal class MiniHttpServer(
         const val WORKER_THREADS = 2
         const val MAX_QUEUED_CONNECTIONS = 8
         const val SOCKET_TIMEOUT_MILLIS = 15_000
+        /** stop() may run on the main thread (ViewModel.onCleared); the thread exits within milliseconds. */
+        const val ACCEPT_EXIT_TIMEOUT_MILLIS = 500L
         const val MAX_HEAD_BYTES = 16 * 1024
         const val MAX_BODY_BYTES = 256 * 1024
     }
