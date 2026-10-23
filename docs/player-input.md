@@ -14,9 +14,17 @@ dialog and asynchronous loading replaces its content with the video player.
   freezes its position and remote play resumes playback. No account is needed.
 
 The release package is `io.github.ricox.boostyvp`, labeled **BoostyVP**,
-version `0.1.0`. It has its own application identity and locally held signing key.
+version `0.2.0`. It has its own application identity and locally held signing key.
 It cannot reuse another package's encrypted account storage. Sign in normally
 in the new app; uninstalling a previous client is a separate, explicit action.
+Updates within BoostyVP retain the package/signing identity and preserve login.
+
+Version 0.2.0 adds local player preferences (seek increments, controller timeout,
+remembered speed) and a native Menu-key action that only reveals the controls.
+The quality picker restores the configured timeout rather than a hardcoded value.
+The player suite includes Menu and custom-increment transport regressions; app
+navigation tests cover the sidebar, recycled rows, settings persistence and focus
+restoration. Preferences tests use only the disposable debug package's storage.
 
 The `Verify and build BoostyVP` workflow runs unit tests and produces an unsigned,
 minified release APK plus a self-contained player instrumentation APK. It has

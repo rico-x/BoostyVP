@@ -55,6 +55,10 @@ internal class TvPlayerView(context: Context) : PlayerView(context) {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode == KeyEvent.KEYCODE_MENU) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) showController()
+            return true
+        }
         if (event.keyCode == KeyEvent.KEYCODE_BACK) {
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
                 hidingControlsOnBack = isControllerFullyVisible

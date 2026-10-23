@@ -52,6 +52,27 @@ class PlayerControlsTest {
         device.pressKeyCode(KeyEvent.KEYCODE_WAKEUP)
     }
 
+    @Test fun menuKeyShowsControlsWithoutPausingOrClosingVideo() {
+        screen()
+        compose.runOnIdle { view.hideController() }
+        device.pressKeyCode(KeyEvent.KEYCODE_MENU)
+        compose.waitUntil(timeoutMillis = 3_000) { compose.runOnIdle { view.isControllerFullyVisible } }
+        compose.runOnIdle {
+            assertTrue(view.player!!.playWhenReady)
+            assertFalse(dismissed)
+        }
+    }
+
+    @Test fun customSeekStepsAreUsedByNativeTransportKeys() {
+        screen(createPlayer = { TestPlayer(backMs = 15_000, forwardMs = 60_000) })
+        val before = compose.runOnIdle { view.player!!.pause(); view.player!!.currentPosition }
+        device.pressKeyCode(KeyEvent.KEYCODE_MEDIA_FAST_FORWARD)
+        compose.waitUntil(timeoutMillis = 3_000) { compose.runOnIdle { view.player!!.currentPosition == before + 60_000 } }
+        device.pressKeyCode(KeyEvent.KEYCODE_MEDIA_REWIND)
+        compose.waitUntil(timeoutMillis = 3_000) { compose.runOnIdle { view.player!!.currentPosition == before + 45_000 } }
+        compose.runOnIdle { assertFalse(dismissed) }
+    }
+
     @Test fun realVideoRendersPausesAndResumesFromRemote() {
         var renderedFrame = false
         screen(createPlayer = { context ->
@@ -270,7 +291,7 @@ class PlayerControlsTest {
     }
 
     /** Seekable video state with no account, network or decoder involved. */
-    private class TestPlayer : SimpleBasePlayer(Looper.getMainLooper()) {
+    private class TestPlayer(private val backMs: Long = 10_000, private val forwardMs: Long = 30_000) : SimpleBasePlayer(Looper.getMainLooper()) {
         private var playing = true
         private var positionMs = 40_000L
         override fun getState(): State = State.Builder()
@@ -283,8 +304,8 @@ class PlayerControlsTest {
             .setPlaylist(listOf(MediaItemData.Builder("test-video")
                 .setIsSeekable(true).setDurationUs(120_000_000).build()))
             .setContentPositionMs(positionMs)
-            .setSeekBackIncrementMs(10_000)
-            .setSeekForwardIncrementMs(30_000)
+            .setSeekBackIncrementMs(backMs)
+            .setSeekForwardIncrementMs(forwardMs)
             .build()
 
         override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> {

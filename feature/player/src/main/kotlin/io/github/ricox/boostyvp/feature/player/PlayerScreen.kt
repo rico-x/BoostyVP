@@ -17,12 +17,14 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
 import io.github.ricox.boostyvp.core.ui.component.EmptyState
 import io.github.ricox.boostyvp.core.ui.component.ErrorState
 import io.github.ricox.boostyvp.core.ui.component.LoadingState
+import io.github.ricox.boostyvp.core.ui.player.PlayerPreferences
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -73,12 +75,15 @@ private fun VideoSurface(
     onEnded: () -> Unit,
 ) {
     val context = LocalContext.current
+    val preferences = remember(context) { PlayerPreferences(context) }
+    val options = remember(state.postId, state.videoId) { preferences.load() }
 
     val player = remember(state.postId, state.videoId, state.candidates, state.startPositionMs) {
         ExoPlayer.Builder(context)
-            .setSeekBackIncrementMs(10_000)
-            .setSeekForwardIncrementMs(30_000)
+            .setSeekBackIncrementMs(options.seekBackSeconds * 1_000L)
+            .setSeekForwardIncrementMs(options.seekForwardSeconds * 1_000L)
             .build()
+            .apply { setPlaybackSpeed(preferences.playbackSpeed()) }
     }
 
     // Index into state.candidates. On a fatal error the controller steps to the
@@ -107,6 +112,10 @@ private fun VideoSurface(
             }
 
             override fun onTracksChanged(tracks: Tracks) = quality.onTracksChanged()
+
+            override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
+                preferences.saveSpeed(playbackParameters.speed)
+            }
         }
         player.addListener(listener)
         fallback.start(startPositionMs = state.startPositionMs)
@@ -156,7 +165,7 @@ private fun VideoSurface(
                 view.apply {
                     this.player = player
                     useController = true
-                    controllerShowTimeoutMs = 4_000
+                    controllerShowTimeoutMs = options.controllerTimeoutMs
                     setShowRewindButton(true)
                     setShowFastForwardButton(true)
                     setShowNextButton(false)
@@ -169,7 +178,7 @@ private fun VideoSurface(
             onRelease = { it.player = null },
             update = {
                 it.player = player
-                it.controllerShowTimeoutMs = if (playbackEnded) 0 else 4_000
+                it.controllerShowTimeoutMs = if (playbackEnded) 0 else options.controllerTimeoutMs
                 if (playbackEnded) it.showController()
             },
             modifier = Modifier.fillMaxSize(),

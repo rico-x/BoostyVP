@@ -21,18 +21,18 @@ import io.github.ricox.boostyvp.core.ui.R as UiR
 internal fun Context.playerDp(value: Int) = (value * resources.displayMetrics.density).toInt()
 
 internal fun playerControlBackground(context: Context): StateListDrawable {
-    val radius = context.playerDp(12).toFloat()
-    val accent = context.getColor(UiR.color.boostyvp_accent)
+    val radius = context.playerDp(8).toFloat()
+    val focused = context.getColor(UiR.color.boostyvp_surface_raised)
     return StateListDrawable().apply {
         addState(intArrayOf(android.R.attr.state_focused), GradientDrawable().apply {
-            setColor(accent); cornerRadius = radius
+            setColor(focused); cornerRadius = radius
             setStroke(context.playerDp(2), context.getColor(UiR.color.boostyvp_text))
         })
         addState(intArrayOf(android.R.attr.state_pressed), GradientDrawable().apply {
-            setColor(accent); cornerRadius = radius
+            setColor(focused); cornerRadius = radius
         })
         addState(intArrayOf(), GradientDrawable().apply {
-            setColor(0x18FFFFFF); cornerRadius = radius
+            setColor(0x10FFFFFF); cornerRadius = radius
         })
     }
 }

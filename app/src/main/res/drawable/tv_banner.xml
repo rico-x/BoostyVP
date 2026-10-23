@@ -9,7 +9,7 @@
         android:fillColor="#17191E"
         android:pathData="M0,0h320v180h-320z" />
     <path
-        android:fillColor="#F5A623"
+        android:fillColor="#D64045"
         android:pathData="M36,66 L72,90 L36,114 Z" />
     <path
         android:fillColor="@android:color/transparent"
@@ -20,7 +20,7 @@
         android:pathData="M88,72V108 M88,72H98C111,72 111,90 98,90H88 M98,90C113,90 113,108 98,108H88 M122,72C110,72 110,108 122,108C134,108 134,72 122,72 M146,72C134,72 134,108 146,108C158,108 158,72 146,72 M177,75C159,63 155,89 168,90C185,91 181,116 160,105 M184,72H204 M194,72V108 M208,72L218,90L228,72 M218,90V108" />
     <path
         android:fillColor="@android:color/transparent"
-        android:strokeColor="#F5A623"
+        android:strokeColor="#D64045"
         android:strokeWidth="4"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"

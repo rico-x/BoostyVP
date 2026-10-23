@@ -69,9 +69,9 @@ fun BlogScreen(
     ScreenBackdrop {
         LazyVerticalGrid(
             state = gridState,
-            columns = GridCells.Adaptive(minSize = 260.dp),
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+            columns = GridCells.Adaptive(minSize = 216.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
             contentPadding = PaddingValues(
                 start = Overscan.Horizontal,
                 end = Overscan.Horizontal,

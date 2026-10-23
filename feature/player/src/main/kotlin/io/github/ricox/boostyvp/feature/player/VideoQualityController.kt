@@ -109,6 +109,7 @@ internal class VideoQualityController(
         )
         val labels = arrayOf("Авто", *heights.map { "${it}p" }.toTypedArray())
         val checked = selectedHeight?.let { heights.indexOf(it) + 1 } ?: 0
+        val previousTimeout = playerView.controllerShowTimeoutMs
         playerView.controllerShowTimeoutMs = 0
         dialog = AlertDialog.Builder(playerView.context)
             .setCustomTitle(TextView(playerView.context).apply {
@@ -128,7 +129,7 @@ internal class VideoQualityController(
             .apply {
                 setOnDismissListener {
                     playerView.controllerShowTimeoutMs =
-                        if (player.playbackState == androidx.media3.common.Player.STATE_ENDED) 0 else 4_000
+                        if (player.playbackState == androidx.media3.common.Player.STATE_ENDED) 0 else previousTimeout
                     playerView.showController()
                     qualityButton?.requestFocus()
                     dialog = null

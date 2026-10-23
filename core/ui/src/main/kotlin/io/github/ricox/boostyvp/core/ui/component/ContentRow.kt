@@ -29,6 +29,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.tv.material3.Border
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
@@ -51,6 +52,9 @@ fun PostRow(
     onTitleClick: (() -> Unit)? = null,
     authorName: String? = null,
     avatarUrl: String? = null,
+    horizontalPadding: Dp = Overscan.Horizontal,
+    titleModifier: Modifier = Modifier,
+    menuFocus: FocusRequester? = null,
 ) {
     if (posts.isEmpty()) return
     val rowState = rememberLazyListState()
@@ -63,20 +67,21 @@ fun PostRow(
             val shape = RoundedCornerShape(12.dp)
             Button(
                 onClick = onTitleClick,
-                modifier = Modifier.padding(horizontal = Overscan.Horizontal).fillMaxWidth(),
-                contentPadding = PaddingValues(8.dp),
+                modifier = titleModifier.padding(horizontal = horizontalPadding).fillMaxWidth()
+                    .focusProperties { if (menuFocus != null) left = menuFocus },
+                contentPadding = PaddingValues(6.dp),
                 shape = ButtonDefaults.shape(shape),
                 colors = ButtonDefaults.colors(containerColor = Color.Transparent, contentColor = colors.onSurface,
                     focusedContainerColor = colors.surfaceVariant, focusedContentColor = colors.onSurface),
                 border = ButtonDefaults.border(focusedBorder = Border(
-                    BorderStroke(2.dp, colors.primary), shape = shape)),
-                scale = ButtonDefaults.scale(focusedScale = 1.01f),
+                    BorderStroke(2.dp, colors.onSurface), shape = shape)),
+                scale = ButtonDefaults.scale(focusedScale = 1f),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    AuthorAvatar(name, avatarUrl, size = 44.dp)
+                    AuthorAvatar(name, avatarUrl, size = 36.dp)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(name, style = MaterialTheme.typography.titleLarge,
+                        Text(name, style = MaterialTheme.typography.titleMedium,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                         if (title.isNotBlank() && title != name) Text(title,
                             style = MaterialTheme.typography.bodySmall,
@@ -94,9 +99,9 @@ fun PostRow(
         }
         LazyRow(
             state = rowState,
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
-            contentPadding = PaddingValues(start = Overscan.Horizontal, end = Overscan.Horizontal,
-                top = 16.dp, bottom = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(start = horizontalPadding, end = horizontalPadding,
+                top = 10.dp, bottom = 10.dp),
             modifier = Modifier
                 .focusProperties {
                     enter = { direction ->
@@ -120,7 +125,8 @@ fun PostRow(
                 PostCard(
                     post,
                     onClick = { onPostClick(post) },
-                    modifier = if (index == 0) Modifier.focusRequester(firstPostFocus) else Modifier,
+                    modifier = if (index == 0) Modifier.focusRequester(firstPostFocus)
+                        .focusProperties { if (menuFocus != null) left = menuFocus } else Modifier,
                 )
             }
         }

@@ -19,9 +19,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.heading
@@ -38,24 +35,19 @@ import androidx.tv.material3.Text
 fun ScreenBackdrop(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
     val colors = MaterialTheme.colorScheme
     Box(
-        modifier.fillMaxSize().background(colors.background).drawBehind {
-            drawRect(Brush.radialGradient(
-                listOf(colors.primary.copy(alpha = 0.07f), Color.Transparent),
-                center = Offset(size.width, 0f), radius = size.width.coerceAtLeast(1f) * 0.85f,
-            ))
-        }, content = content,
+        modifier.fillMaxSize().background(colors.background), content = content,
     )
 }
 
 @Composable
-fun BoostyVPBrand(modifier: Modifier = Modifier) {
+fun BoostyVPBrand(modifier: Modifier = Modifier, compact: Boolean = false) {
     val colors = MaterialTheme.colorScheme
     Row(modifier, verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Icon(Icons.Default.PlayArrow, contentDescription = null,
             tint = colors.primary, modifier = Modifier.size(28.dp))
-        Text("BoostyVP", style = MaterialTheme.typography.titleLarge)
-        Text("TV", style = MaterialTheme.typography.labelMedium, color = colors.primary,
+        Text("BoostyVP", style = if (compact) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge)
+        if (!compact) Text("TV", style = MaterialTheme.typography.labelMedium, color = colors.primary,
             modifier = Modifier.background(colors.primary.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
                 .padding(horizontal = 8.dp, vertical = 4.dp))
     }
@@ -79,17 +71,17 @@ fun TvActionButton(
         colors = ButtonDefaults.colors(
             containerColor = if (primary) colors.primary else colors.surfaceVariant,
             contentColor = if (primary) colors.onPrimary else colors.onSurface,
-            focusedContainerColor = colors.primary,
-            focusedContentColor = colors.onPrimary,
-            pressedContainerColor = colors.primary,
-            pressedContentColor = colors.onPrimary,
+            focusedContainerColor = colors.surfaceVariant,
+            focusedContentColor = colors.onSurface,
+            pressedContainerColor = colors.surfaceVariant,
+            pressedContentColor = colors.onSurface,
             disabledContainerColor = colors.surfaceVariant,
             disabledContentColor = colors.onSurfaceVariant,
         ),
         border = ButtonDefaults.border(
             focusedBorder = Border(BorderStroke(2.dp, colors.onSurface), inset = 3.dp, shape = shape),
         ),
-        scale = ButtonDefaults.scale(focusedScale = 1.025f, pressedScale = 1f),
+        scale = ButtonDefaults.scale(focusedScale = 1f, pressedScale = 1f),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
     ) {
         if (icon != null) Icon(icon, contentDescription = null,

@@ -43,13 +43,13 @@ import java.util.Locale
 @Composable
 fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
-    val shape = RoundedCornerShape(16.dp)
+    val shape = RoundedCornerShape(8.dp)
     val date = remember(post.publishedAt) {
         if (post.publishedAt > 0) SimpleDateFormat("d MMM", Locale.forLanguageTag("ru"))
             .format(Date(post.publishedAt * 1000L)) else ""
     }
     Card(
-        onClick = onClick, modifier = modifier.width(280.dp),
+        onClick = onClick, modifier = modifier.width(216.dp),
         shape = CardDefaults.shape(shape),
         colors = CardDefaults.colors(containerColor = colors.surface, contentColor = colors.onSurface,
             focusedContainerColor = colors.surfaceVariant, focusedContentColor = colors.onSurface),
@@ -57,7 +57,7 @@ fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier) {
             border = Border(BorderStroke(1.dp, colors.border.copy(alpha = 0.4f)), shape = shape),
             focusedBorder = Border(BorderStroke(3.dp, colors.onSurface), inset = 3.dp, shape = shape),
         ),
-        scale = CardDefaults.scale(focusedScale = 1.035f, pressedScale = 1f),
+        scale = CardDefaults.scale(focusedScale = 1.02f, pressedScale = 1f),
     ) {
         Column {
             Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)
@@ -81,9 +81,9 @@ fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier) {
                         .background(colors.primary, RoundedCornerShape(6.dp))
                         .padding(horizontal = 8.dp, vertical = 4.dp))
             }
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(post.title.ifBlank { "Без названия" }, style = MaterialTheme.typography.titleMedium.copy(
-                    fontSize = 18.sp, lineHeight = 24.sp),
+                    fontSize = 16.sp, lineHeight = 22.sp),
                     minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically) {

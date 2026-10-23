@@ -208,15 +208,15 @@ class PairingServer(
             <meta name="viewport" content="width=device-width,initial-scale=1">
             <meta name="color-scheme" content="dark">
             <title>BoostyVP — подключено</title></head>
-            <body style="margin:0;padding:48px 24px;background:#0E0F12;color:#F2F3F5;
+            <body style="margin:0;padding:48px 24px;background:#101114;color:#F2F3F5;
                          font:16px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
                          text-align:center">
-              <main style="max-width:480px;margin:8vh auto;background:#191C22;border:1px solid #414752;
+              <main style="max-width:480px;margin:8vh auto;background:#191A1F;border:1px solid #44464F;
                            border-radius:24px;padding:36px 24px">
-                <div style="color:#F5A623;font-size:14px;font-weight:700;letter-spacing:2px">BOOSTYVP</div>
+                <div style="color:#D64045;font-size:14px;font-weight:700;letter-spacing:2px">BOOSTYVP</div>
                 <svg width="56" height="56" viewBox="0 0 24 24" aria-hidden="true" style="margin-top:28px">
-                  <circle cx="12" cy="12" r="11" fill="#F5A623"/>
-                  <path d="M6 12L10 16L18 8" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round"/>
+                  <circle cx="12" cy="12" r="11" fill="#D64045"/>
+                  <path d="M6 12L10 16L18 8" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
                 </svg>
                 <h1 style="font-size:28px;line-height:1.2">Можно смотреть</h1>
                 <p style="color:#B8BDC7">Аккаунт передан на ваш телевизор.<br>Эту вкладку можно закрыть.</p>
