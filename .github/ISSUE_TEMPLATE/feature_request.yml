@@ -1,0 +1,23 @@
+name: Предложение / Feature request
+description: Улучшение клиента Android TV
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Какую пользовательскую задачу это решает?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Предложение и ожидаемое управление с пульта
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Проверка
+      options:
+        - label: Проверены roadmap и похожие Issues; предложение не обходит ограничения доступа.
+          required: true

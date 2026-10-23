@@ -1,112 +1,112 @@
 name: Build and publish BoostyVP
-
 on:
   workflow_dispatch:
-
+    inputs:
+      prerelease:
+        description: Mark this development version as a pre-release
+        type: boolean
+        default: true
 permissions:
-  contents: write
-
+  contents: read
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
+  group: publish-boostyvp
+  cancel-in-progress: false
 jobs:
-  build:
-    name: Build release APK
+  guard:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    defaults:
-      run:
-        shell: bash
-
+    timeout-minutes: 5
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v7
+      - name: Releases may only come from main
+        env:
+          RELEASE_REF: ${{ github.ref }}
+        run: test "$RELEASE_REF" = refs/heads/main
+  verify:
+    needs: guard
+    uses: ./.github/workflows/verify-build.yml
+    permissions:
+      contents: read
+  sign:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-
-      - name: Restore release keystore
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
-            if [[ -z "${!name}" ]]; then
-              echo "::error::Missing GitHub Actions secret: $name"
-              exit 1
-            fi
-          done
-          umask 077
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/boostyvp-release.jks"
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v6
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: unsigned-apks
+          path: unsigned-apks
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           distribution: temurin
           java-version: '21'
-          cache: gradle
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
-
-      - name: Install Android SDK packages
-        run: sdkmanager "platforms;android-35" "build-tools;34.0.0" "build-tools;35.0.0"
-
-      - name: Make Gradle Wrapper executable
-        run: chmod +x gradlew
-
-      - name: Build release APK
-        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
-
-      - name: Sign and verify release APK
-        id: apk
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+      - name: Install signing tools
+        run: bash build-support/install-sdk.sh 'build-tools;35.0.0'
+      - name: Restore private signing file
         env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/boostyvp-release.p12"
+      - name: Sign, inspect ABIs and verify the persistent certificate
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/boostyvp-release.p12
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          version="$(jq -er '.elements[0].versionName' app/build/outputs/apk/release/output-metadata.json)"
-          apk_path="app/build/outputs/apk/release/boostyvp-v${version}.apk"
-          build_tools="$ANDROID_HOME/build-tools/35.0.0"
-          "$build_tools/zipalign" -P 16 -f 4 \
-            app/build/outputs/apk/release/app-release-unsigned.apk \
-            "$RUNNER_TEMP/app-release-aligned.apk"
-          "$build_tools/apksigner" sign \
-            --ks "$RUNNER_TEMP/boostyvp-release.jks" \
-            --ks-key-alias "$ANDROID_KEY_ALIAS" \
-            --ks-pass env:ANDROID_KEYSTORE_PASSWORD \
-            --key-pass env:ANDROID_KEY_PASSWORD \
-            --out "$apk_path" \
-            "$RUNNER_TEMP/app-release-aligned.apk"
-          "$build_tools/apksigner" verify --verbose "$apk_path"
-          "$build_tools/zipalign" -c -P 16 4 "$apk_path"
-          printf 'version=%s\npath=%s\n' "$version" "$apk_path" >> "$GITHUB_OUTPUT"
-
-      - name: Remove temporary signing files
+        run: bash build-support/sign-release.sh unsigned-apks dist
+      - name: Delete temporary private key
         if: always()
-        run: rm -f -- "$RUNNER_TEMP/boostyvp-release.jks" "$RUNNER_TEMP/app-release-aligned.apk"
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v7
+        run: rm -f -- "$RUNNER_TEMP/boostyvp-release.p12"
+      - name: Attest signed artifacts and checksums
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
-          name: boostyvp-v${{ steps.apk.outputs.version }}
-          path: ${{ steps.apk.outputs.path }}
+          subject-path: 'dist/*'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: signed-release
+          path: dist/*
           if-no-files-found: error
           retention-days: 14
-
-      - name: Publish GitHub Release
+  publish:
+    needs: sign
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: signed-release
+          path: dist
+      - name: Verify integrity and publish a complete release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          APP_VERSION: ${{ steps.apk.outputs.version }}
-          APK_PATH: ${{ steps.apk.outputs.path }}
+          PRERELEASE: ${{ inputs.prerelease }}
         run: |
-          tag="build-${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
-          gh release create "$tag" \
-            "$APK_PATH" \
-            --target "$GITHUB_SHA" \
-            --title "BoostyVP v$APP_VERSION ($tag)" \
-            --generate-notes \
-            --latest
+          node build-support/release-tools.mjs verify-assets dist
+          version="$(node build-support/release-tools.mjs version)"
+          tag="v$version"
+          notes="release-notes/$tag.md"
+          test -s "$notes"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo '::error::Release exists. Never overwrite published binaries; inspect an unfinished draft or bump the version.'
+            exit 1
+          fi
+          args=()
+          if [[ "$PRERELEASE" == true ]]; then args+=(--prerelease); fi
+          gh release create "$tag" dist/*.apk dist/SHA256SUMS dist/release-manifest.json --target "$GITHUB_SHA" --title "BoostyVP $version" --notes-file "$notes" --draft "${args[@]}"
+          gh release edit "$tag" --draft=false
+          printf 'Published [BoostyVP %s](https://github.com/%s/releases/tag/%s)\n' "$version" "$GH_REPO" "$tag" >> "$GITHUB_STEP_SUMMARY"

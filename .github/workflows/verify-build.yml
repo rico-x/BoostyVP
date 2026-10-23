@@ -1,45 +1,69 @@
 name: Verify and build BoostyVP
-
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
-
+  workflow_call:
 permissions:
   contents: read
-
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build:
+    name: Tests and five APK variants
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           distribution: temurin
           java-version: '21'
           cache: gradle
-      - uses: android-actions/setup-android@v4
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
       - name: Install SDK
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
-      - name: Verify browser handoff without account or network access
-        run: node build-support/test-pairing-brand.mjs
-      - name: Unit tests and build release and on-device regression tests
-        run: ./gradlew testDebugUnitTest :app:assembleRelease :feature:player:assembleDebugAndroidTest --no-daemon --stacktrace
-      - name: Upload unsigned release and regression test APK
-        uses: actions/upload-artifact@v7
+        run: bash build-support/install-sdk.sh 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Verify browser handoff and release tooling
+        run: |
+          node build-support/test-pairing-brand.mjs
+          node --test build-support/release-tools.test.mjs
+          bash -n build-support/sign-release.sh
+          shellcheck build-support/sign-release.sh
+          node build-support/build-pages.mjs
+      - name: Unit tests and all instrumentation APKs
+        run: ./gradlew testDebugUnitTest :core:domain:test :app:assembleDebug assembleDebugAndroidTest --no-daemon --max-workers=2 --no-watch-fs --console=plain
+      - name: Build and inspect architecture variants
+        run: |
+          ./gradlew :app:assembleRelease -PsplitApks=true --no-daemon --max-workers=2 --no-watch-fs --console=plain
+          node build-support/release-tools.mjs check-apks app/build/outputs/apk/release
+      - name: Upload unsigned APKs for separate signing
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: boostyvp
+          name: unsigned-apks
           path: |
-            app/build/outputs/apk/release/app-release-unsigned.apk
-            feature/player/build/outputs/apk/androidTest/debug/*.apk
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/apk/release/output-metadata.json
           if-no-files-found: error
-          retention-days: 14
-      - name: Upload test reports
+          retention-days: 7
+      - name: Upload device regression APKs (compiled, not executed here)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: device-regression-apks
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            **/build/outputs/apk/androidTest/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload unit-test reports
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: unit-test-reports
-          path: '**/build/test-results/testDebugUnitTest/*.xml'
-          if-no-files-found: ignore
+          path: '**/build/test-results/test*/*.xml'
+          if-no-files-found: warn
           retention-days: 14

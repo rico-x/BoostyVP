@@ -1,3 +1,6 @@
+import java.io.StringReader
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,6 +8,20 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
 }
+
+val releaseVersion = Properties().apply {
+    load(StringReader(providers.fileContents(rootProject.layout.projectDirectory.file("version.properties")).asText.get()))
+}
+
+val prepareLegalAssets by tasks.registering(Sync::class) {
+    from(listOf(rootProject.file("LICENSE.md"), rootProject.file("NOTICE.md"), rootProject.file("DISCLAIMER.md"),
+        rootProject.file("SECURITY.md"))) { into("legal") }
+    from(listOf(rootProject.file("docs/THIRD_PARTY.md"), rootProject.file("docs/PRIVACY.md"))) { into("legal/docs") }
+    from(listOf(rootProject.file("LICENSES/MIT.txt"), rootProject.file("LICENSES/Apache-2.0.txt"))) { into("legal/LICENSES") }
+    into(layout.buildDirectory.dir("generated/legalAssets"))
+}
+
+tasks.named("preBuild") { dependsOn(prepareLegalAssets) }
 
 android {
     namespace = "io.github.ricox.boostyvp"
@@ -15,9 +32,19 @@ android {
         applicationId = "io.github.ricox.boostyvp"
         minSdk = 23
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.2.1"
+        versionCode = releaseVersion.getProperty("versionCode").toInt()
+        versionName = releaseVersion.getProperty("versionName")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    // Opt in for distribution; ordinary debug/device-test builds stay universal.
+    splits {
+        abi {
+            isEnable = providers.gradleProperty("splitApks").orNull == "true"
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            isUniversalApk = true
+        }
     }
 
     buildTypes {
@@ -43,6 +70,8 @@ android {
     buildFeatures {
         compose = true
     }
+
+    sourceSets.getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/legalAssets"))
 
     packaging {
         resources {

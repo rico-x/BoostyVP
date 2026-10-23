@@ -1,0 +1,37 @@
+name: Ошибка / Bug report
+description: Ошибка приложения или управления пультом без приватных данных
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Не публикуйте пароли, cookies, токены, QR входа, платные публикации и приватные медиассылки. Уязвимости сообщайте по SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Версия BoostyVP и архитектура APK
+      placeholder: 0.0.3, universal
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: ТВ/приставка и версия Android
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Как воспроизвести, что ожидалось и что произошло
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Обезличенные логи или скриншоты (необязательно)
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Проверка перед отправкой
+      options:
+        - label: В сообщении нет секретов и приватного контента; похожие Issues проверены.
+          required: true

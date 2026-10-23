@@ -33,3 +33,33 @@ build is not automatically faster than GitHub's native x86-64 runner.
 The release APK in `app/build/outputs/apk/release/` is unsigned. Sign it locally
 using a persistent private key stored **outside** this repository. Never commit
 keys, passwords, login/session data, or a user's diagnostics/screenshots.
+
+## Release 0.0.3
+
+The version comes from `version.properties`. Use `-PsplitApks=true` with
+`:app:assembleRelease` to produce four ABI APKs plus universal. Omit the flag
+for ordinary debug/device builds. A universal APK is recommended when the
+Android OS ABI is unknown; CPU bitness alone is not enough.
+
+Node.js 20+ tooling has no npm dependencies:
+
+```sh
+node --test build-support/release-tools.test.mjs
+node build-support/build-pages.mjs
+shellcheck build-support/sign-release.sh build-support/install-sdk.sh
+```
+
+The Android runner also runs:
+
+```sh
+./gradlew testDebugUnitTest :core:domain:test :app:assembleDebug assembleDebugAndroidTest
+./gradlew :app:assembleRelease -PsplitApks=true
+node build-support/release-tools.mjs check-apks app/build/outputs/apk/release
+```
+
+The final command requires Node.js and Android SDK Build Tools 35.0.0 in the
+same environment; the minimal Gradle Docker image does not bundle Node.js.
+Device APKs are compiled by CI, not run on physical TVs by the runner.
+Signing uses the restricted GitHub `release` environment, never PR secrets.
+See [release procedure and certificate verification](../docs/RELEASING.md),
+[security limits](../SECURITY.md) and [license scope](../LICENSE.md).

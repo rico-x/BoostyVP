@@ -1,0 +1,7 @@
+{
+  "applicationId": "io.github.ricox.boostyvp",
+  "minSdk": 23,
+  "targetSdk": 35,
+  "abis": ["armeabi-v7a", "arm64-v8a", "x86", "x86_64"],
+  "signerSha256": "3f86f9845707ef4d3adf3e3d81c4ee6080b9a06f570556bdd65c0a02579b1b4c"
+}

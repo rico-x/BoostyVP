@@ -1,10 +1,24 @@
 # BoostyVP
 
+[![Проверки](https://github.com/rico-x/BoostyVP/actions/workflows/verify-build.yml/badge.svg)](https://github.com/rico-x/BoostyVP/actions/workflows/verify-build.yml)
+[![CodeQL](https://github.com/rico-x/BoostyVP/actions/workflows/codeql.yml/badge.svg)](https://github.com/rico-x/BoostyVP/actions/workflows/codeql.yml)
+
 **Ваши подписки Boosty — на большом экране.**
 
 Независимый клиент Boosty для Android TV / Google TV. Русский интерфейс,
 тёмная тема и управление обычным пультом. Развивается как самостоятельный
 форк с интерфейсом и удобством просмотра, ориентированными на SmartTube.
+
+**Текущая версия — 0.0.3, ранний pre-release.**
+[Сайт проекта](https://rico-x.github.io/BoostyVP/) ·
+[Скачать APK](https://github.com/rico-x/BoostyVP/releases/tag/v0.0.3) ·
+[Что нового](CHANGELOG.md) · [Roadmap](docs/ROADMAP.md).
+
+Разработка ведётся с участием [LLM-ассистентов](docs/AI_ASSISTANCE.md).
+MIT относится **только к оригинальным изменениям форка**, не ко всему
+унаследованному коду или APK: [лицензирование](LICENSE.md), [происхождение](NOTICE.md).
+Перед использованием прочтите [отказ от гарантий](DISCLAIMER.md),
+[ограничения безопасности](SECURITY.md) и [описание данных](docs/PRIVACY.md).
 
 Приложение не связано с администрацией Boosty или SmartTube. Для платного
 контента нужна действующая подписка соответствующего уровня. Ограничения
@@ -40,7 +54,16 @@
 ## Установка
 
 Новый пакет: `io.github.ricox.boostyvp`. Минимальная версия Android — 6.0.
-Поддерживаются 32-битные Android TV; APK включает ARMv7-библиотеки.
+Доступны отдельные APK для `armeabi-v7a` (ARMv7), `arm64-v8a` (ARM64), `x86`,
+`x86_64` и универсальный APK. Если архитектура ОС неизвестна, выбирайте
+**universal**: 64-битный чип может работать с 32-битной Android.
+Отдельные версии для Android 6/7/8 и т. д. не требуются: минимальная версия — 6.0.
+
+Скачивайте APK из Releases, не тестовый debug-артефакт Actions.
+В выпуске есть `SHA256SUMS` и `release-manifest.json`; сертификат и контрольные
+суммы проверяются по [инструкции выпуска](docs/RELEASING.md).
+Ранние локальные сборки назывались 0.2.x. Публичная нумерация сейчас 0.0.3,
+а внутренний Android `versionCode=7` выше прежнего 6 для обновления поверх.
 
 BoostyVP устанавливается как отдельное приложение и требует обычного входа.
 Данные и ключи других приложений не копируются. После проверки BoostyVP
@@ -157,6 +180,9 @@ OK переключает его; вверх из первого пункта в
 - [Локальная сборка в Docker](build-support/README.md).
 - [Проверки плеера и причины исправления управления](docs/player-input.md).
 - [Дорожная карта и статус задач](docs/ROADMAP.md): что готово, что следующим, технический долг.
+- [Выпуски и проверка APK](docs/RELEASING.md), [история изменений](CHANGELOG.md).
+- [Правила участия](CONTRIBUTING.md), [участие LLM](docs/AI_ASSISTANCE.md).
+- [Безопасность](SECURITY.md), [данные](docs/PRIVACY.md), [сторонние компоненты](docs/THIRD_PARTY.md).
 
 Разработка, сборка, проверки и Git-коммиты выполняются локально в
 `/Users/rico-x/Documents/GitHub/BoostyVP`. Отправка в GitHub и публикация
