@@ -78,6 +78,10 @@ fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier) {
                     post.primaryVideo != null -> Badge(null, post.primaryVideo!!.duration.formatDuration())
                     !post.hasVideo -> Badge(null, "Текст")
                 }
+                val watched = LocalWatchProgress.current[post.id]
+                if (watched != null && watched > 0f) {
+                    WatchProgressBar(watched, Modifier.align(Alignment.BottomStart))
+                }
                 if (post.isPinned) Text("Закреплено", style = MaterialTheme.typography.labelSmall,
                     color = colors.onPrimary,
                     modifier = Modifier.align(Alignment.TopStart).padding(10.dp)

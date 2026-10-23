@@ -5,8 +5,10 @@ import io.github.ricox.boostyvp.core.domain.repository.PlaybackProgressRepositor
 import io.github.ricox.boostyvp.core.model.ContentBlock
 import io.github.ricox.boostyvp.core.model.Post
 import io.github.ricox.boostyvp.core.model.VideoSource
+import io.github.ricox.boostyvp.core.model.WatchProgress
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.MockKMatcherScope
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +33,11 @@ class PlayerViewModelTest {
     private val progress = mockk<PlaybackProgressRepository>(relaxed = true)
 
     @Before fun setup() { Dispatchers.setMain(dispatcher) }
+
+    private fun MockKMatcherScope.saved(post: String, video: String, position: Long, duration: Long) =
+        match<WatchProgress> {
+            it.postId == post && it.videoId == video && it.positionMs == position && it.durationMs == duration
+        }
     @After fun tearDown() { Dispatchers.resetMain() }
 
     private fun post(id: String): Post {
@@ -70,6 +77,21 @@ class PlayerViewModelTest {
         assertEquals(article, (model.state.value as PlayerUiState.Publication).post)
     }
 
+    @Test fun `checkpoints carry what the continue-watching card needs`() = runTest(dispatcher) {
+        val base = post("card")
+        val video = (base.blocks.single() as ContentBlock.Video).copy(previewUrl = "https://img.example/card.jpg")
+        coEvery { blogs.post("blog", "card") } returns base.copy(title = "Card title", blocks = listOf(video))
+        val model = PlayerViewModel(blogs, progress) { 1_700_000_000_000 }
+        model.load("blog", "card")
+        advanceUntilIdle()
+        model.onProgress(model.state.value as PlayerUiState.Ready, 40_000, 120_000)
+        advanceUntilIdle()
+        coVerify {
+            progress.save(WatchProgress("card", "video-card", 40_000, 120_000, 1_700_000_000_000,
+                blogUrl = "blog", title = "Card title", blogTitle = "Blog", previewUrl = "https://img.example/card.jpg"))
+        }
+    }
+
     @Test fun `a delayed previous load cannot replace the new video or its progress key`() = runTest(dispatcher) {
         coEvery { blogs.post("blog", "old") } coAnswers {
             withContext(NonCancellable) { delay(100) }
@@ -84,8 +106,8 @@ class PlayerViewModelTest {
         assertEquals("new", (model.state.value as PlayerUiState.Ready).title)
         model.onProgress(model.state.value as PlayerUiState.Ready, 20_000, 120_000)
         advanceUntilIdle()
-        coVerify { progress.save("new", "video-new", 20_000, 120_000) }
-        coVerify(exactly = 0) { progress.save("new", "video-old", any(), any()) }
+        coVerify { progress.save(saved("new", "video-new", 20_000, 120_000)) }
+        coVerify(exactly = 0) { progress.save(match { it.postId == "new" && it.videoId == "video-old" }) }
     }
 
     @Test fun `queued progress keeps the identity of the video that reported it`() = runTest(dispatcher) {
@@ -98,9 +120,9 @@ class PlayerViewModelTest {
         model.onPlaybackEnded(old)
         model.load("blog", "new")
         advanceUntilIdle()
-        coVerify { progress.save("old", "video-old", 20_000, 120_000) }
+        coVerify { progress.save(saved("old", "video-old", 20_000, 120_000)) }
         coVerify { progress.clear("old", "video-old") }
-        coVerify(exactly = 0) { progress.save("new", any(), any(), any()) }
+        coVerify(exactly = 0) { progress.save(match { it.postId == "new" }) }
     }
 
     @Test fun `final callbacks from a disposed player retain its old video identity`() = runTest(dispatcher) {
@@ -114,9 +136,9 @@ class PlayerViewModelTest {
         model.onProgress(disposed, 25_000, 120_000)
         model.onPlaybackEnded(disposed)
         advanceUntilIdle()
-        coVerify { progress.save("old", "video-old", 25_000, 120_000) }
+        coVerify { progress.save(saved("old", "video-old", 25_000, 120_000)) }
         coVerify { progress.clear("old", "video-old") }
-        coVerify(exactly = 0) { progress.save("new", any(), any(), any()) }
+        coVerify(exactly = 0) { progress.save(match { it.postId == "new" }) }
         coVerify(exactly = 0) { progress.clear("new", any()) }
     }
 

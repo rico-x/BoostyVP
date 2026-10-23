@@ -3,6 +3,7 @@ package io.github.ricox.boostyvp.feature.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.ricox.boostyvp.core.domain.repository.PlaybackProgressRepository
 import io.github.ricox.boostyvp.core.domain.usecase.GetHomeFeed
 import io.github.ricox.boostyvp.core.model.Blog
 import io.github.ricox.boostyvp.core.model.Post
@@ -11,8 +12,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -26,9 +30,17 @@ sealed interface HomeUiState {
 }
 
 @HiltViewModel
-class HomeViewModel @Inject constructor(private val getHomeFeed: GetHomeFeed) : ViewModel() {
+class HomeViewModel @Inject constructor(
+    private val getHomeFeed: GetHomeFeed,
+    progress: PlaybackProgressRepository,
+) : ViewModel() {
     private val _state = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
+
+    /** Read from the local library of the signed-in account; Boosty is not asked. */
+    val continueWatching: StateFlow<List<Post>> = progress.continueWatching()
+        .map { entries -> entries.map { it.toCardPost() } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     private var refreshJob: Job? = null
 
     init { refresh() }

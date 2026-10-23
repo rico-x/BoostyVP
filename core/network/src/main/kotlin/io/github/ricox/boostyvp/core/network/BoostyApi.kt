@@ -2,6 +2,7 @@ package io.github.ricox.boostyvp.core.network
 
 import io.github.ricox.boostyvp.core.network.dto.BlogDto
 import io.github.ricox.boostyvp.core.network.dto.CommentDto
+import io.github.ricox.boostyvp.core.network.dto.CurrentUserDto
 import io.github.ricox.boostyvp.core.network.dto.FeedResponseDto
 import io.github.ricox.boostyvp.core.network.dto.PagedResponse
 import io.github.ricox.boostyvp.core.network.dto.PostDto
@@ -90,6 +91,13 @@ interface BoostyApi {
         @Query("offset") offset: String? = null,
         @Query("only_allowed") onlyAllowed: Boolean = true,
     ): FeedResponseDto
+
+    /**
+     * VERIFIED on a signed-in TV 2026-10-23. The response also carries personal
+     * fields (e-mail, settings); [CurrentUserDto] deliberately decodes only `id`.
+     */
+    @GET("v1/user/current")
+    suspend fun getCurrentUser(): CurrentUserDto
 
     /** Verified against Boosty's own web client on 2026-10-19. */
     @FormUrlEncoded

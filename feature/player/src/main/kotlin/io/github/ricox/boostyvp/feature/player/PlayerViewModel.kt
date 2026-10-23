@@ -8,6 +8,7 @@ import io.github.ricox.boostyvp.core.domain.repository.PlaybackProgressRepositor
 import io.github.ricox.boostyvp.core.model.ContentBlock
 import io.github.ricox.boostyvp.core.model.Post
 import io.github.ricox.boostyvp.core.model.VideoSource
+import io.github.ricox.boostyvp.core.model.WatchProgress
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -29,6 +30,10 @@ sealed interface PlayerUiState {
         val video: ContentBlock.Video,
         val candidates: List<VideoSource>,
         val startPositionMs: Long,
+        // Saved with each checkpoint to draw the "Продолжить просмотр" card.
+        val blogUrl: String = "",
+        val blogTitle: String = "",
+        val previewUrl: String? = null,
     ) : PlayerUiState
 
     /** Subscription tier does not cover this post. */
@@ -40,10 +45,14 @@ sealed interface PlayerUiState {
 }
 
 @HiltViewModel
-class PlayerViewModel @Inject constructor(
+class PlayerViewModel(
     private val blogRepository: BlogRepository,
     private val progressRepository: PlaybackProgressRepository,
+    private val now: () -> Long,
 ) : ViewModel() {
+    @Inject constructor(blogRepository: BlogRepository, progressRepository: PlaybackProgressRepository) :
+        this(blogRepository, progressRepository, System::currentTimeMillis)
+
 
     private val _state = MutableStateFlow<PlayerUiState>(PlayerUiState.Loading)
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
@@ -103,14 +112,21 @@ class PlayerViewModel @Inject constructor(
             video = video,
             candidates = candidates,
             startPositionMs = startMs,
+            blogUrl = post.blogUrl.ifBlank { blogUrl },
+            blogTitle = post.blogTitle,
+            previewUrl = video.previewUrl ?: post.thumbnailUrl,
         )
     }
 
     fun onProgress(playback: PlayerUiState.Ready, positionMs: Long, durationMs: Long) {
         if (playback.postId.isBlank() || playback.videoId.isBlank()) return
-        viewModelScope.launch {
-            progressRepository.save(playback.postId, playback.videoId, positionMs, durationMs)
-        }
+        val progress = WatchProgress(
+            postId = playback.postId, videoId = playback.videoId,
+            positionMs = positionMs, durationMs = durationMs, updatedAt = now(),
+            blogUrl = playback.blogUrl, title = playback.title, blogTitle = playback.blogTitle,
+            previewUrl = playback.previewUrl,
+        )
+        viewModelScope.launch { progressRepository.save(progress) }
     }
 
     fun onPlaybackEnded(playback: PlayerUiState.Ready) {

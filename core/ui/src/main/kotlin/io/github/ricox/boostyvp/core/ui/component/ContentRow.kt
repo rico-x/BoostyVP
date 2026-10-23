@@ -94,8 +94,8 @@ fun PostRow(
                 }
             }
         } else {
-            Text(title, style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(start = Overscan.Horizontal, bottom = 8.dp))
+            Text(title, style = MaterialTheme.typography.titleMedium,
+                modifier = titleModifier.padding(start = horizontalPadding + 6.dp, top = 6.dp))
         }
         LazyRow(
             state = rowState,

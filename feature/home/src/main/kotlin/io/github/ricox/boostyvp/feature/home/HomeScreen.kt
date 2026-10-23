@@ -27,6 +27,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -58,6 +59,7 @@ fun HomeScreen(
     newFeedViewModel: NewFeedViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val continueWatching by viewModel.continueWatching.collectAsStateWithLifecycle()
     var showSignOut by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val preferences = remember(context) { PlayerPreferences(context) }
@@ -65,7 +67,7 @@ fun HomeScreen(
     var showPlayerSettings by rememberSaveable { mutableStateOf(false) }
     HomeLayout(state, onPostClick, onBlogClick, { showSignOut = true }, viewModel::refresh,
         onPlayerSettings = { options = preferences.load(); showPlayerSettings = true },
-        newPosts = newFeedViewModel.posts)
+        newPosts = newFeedViewModel.posts, continueWatching = continueWatching)
     if (showPlayerSettings) PlayerSettingsDialog(options, onChange = {
         options = it
         preferences.save(it)
@@ -86,6 +88,7 @@ fun HomeLayout(
     onRefresh: () -> Unit,
     onPlayerSettings: () -> Unit = {},
     newPosts: Flow<PagingData<Post>> = emptyFlow(),
+    continueWatching: List<Post> = emptyList(),
 ) {
     val menuFocus = remember { FocusRequester() }
     val contentFocus = remember { FocusRequester() }
@@ -96,7 +99,9 @@ fun HomeLayout(
     // Collected only while "Новое" is shown: Home itself never requests the feed.
     val newItems = if (section == HomeSection.New) newPosts.collectAsLazyPagingItems() else null
     val hasContent = if (newItems != null) newItems.itemCount > 0
-        else (state as? HomeUiState.Content)?.rows?.any { it.posts.isNotEmpty() } == true
+        else (state as? HomeUiState.Content)?.let { content ->
+            continueWatching.isNotEmpty() || content.rows.any { it.posts.isNotEmpty() }
+        } == true
 
     // Back from "Новое" returns to the subscriptions, the screen Back exits from.
     BackHandler(enabled = section != HomeSection.Subscriptions) {
@@ -151,7 +156,8 @@ fun HomeLayout(
                             title = "Здесь будут ваши авторы",
                             detail = "Подпишитесь на авторов на boosty.to — их публикации появятся на вашем ТВ.",
                         )
-                        is HomeUiState.Content -> HomeContent(state, onPostClick, onBlogClick, menuFocus)
+                        is HomeUiState.Content ->
+                            HomeContent(state, continueWatching, onPostClick, onBlogClick, menuFocus)
                     }
                 }
             }
@@ -162,12 +168,13 @@ fun HomeLayout(
 @Composable
 private fun HomeContent(
     state: HomeUiState.Content,
+    continueWatching: List<Post>,
     onPostClick: (Post) -> Unit,
     onBlogClick: (String) -> Unit,
     menuFocus: FocusRequester,
 ) {
     val rows = state.rows.filter { it.posts.isNotEmpty() }
-    if (rows.isEmpty()) {
+    if (rows.isEmpty() && continueWatching.isEmpty()) {
         EmptyState(title = "Публикации ещё впереди", detail = "Новые публикации ваших авторов появятся здесь.")
         return
     }
@@ -177,6 +184,13 @@ private fun HomeContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(bottom = Overscan.Vertical),
     ) {
+        if (continueWatching.isNotEmpty()) item(key = "continue_watching") {
+            PostRow(
+                title = "Продолжить просмотр", posts = continueWatching, onPostClick = onPostClick,
+                horizontalPadding = 24.dp, titleModifier = Modifier.testTag("continue_watching"),
+                menuFocus = menuFocus,
+            )
+        }
         items(items = rows, key = { it.blog.url }) { row ->
             PostRow(
                 title = row.blog.title.ifBlank { row.blog.url }, authorName = row.blog.ownerName,

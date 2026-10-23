@@ -1,6 +1,7 @@
 package io.github.ricox.boostyvp.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.background
@@ -21,6 +22,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import io.github.ricox.boostyvp.core.model.AuthState
 import io.github.ricox.boostyvp.core.ui.component.LoadingState
+import io.github.ricox.boostyvp.core.ui.component.LocalWatchProgress
 import io.github.ricox.boostyvp.feature.blog.BlogScreen
 import io.github.ricox.boostyvp.feature.home.HomeScreen
 import io.github.ricox.boostyvp.feature.pairing.AuthLandingScreen
@@ -50,8 +52,10 @@ private fun String.encodeArg(): String = Uri.encode(this)
 fun BoostyVPNavHost(
     navController: NavHostController = rememberNavController(),
     viewModel: RootViewModel = hiltViewModel(),
+    watchProgress: WatchProgressViewModel = hiltViewModel(),
 ) {
     val authState by viewModel.authState.collectAsStateWithLifecycle()
+    val watched by watchProgress.byPost.collectAsStateWithLifecycle()
     val signOutState by viewModel.signOutState.collectAsStateWithLifecycle()
 
     when (authState) {
@@ -74,63 +78,65 @@ fun BoostyVPNavHost(
         is AuthState.SignedIn -> Unit
     }
 
-    NavHost(
-        navController = navController,
-        startDestination = if (authState is AuthState.SignedIn) Routes.HOME else Routes.AUTH,
-    ) {
-        // Both sign-in routes converge here: clear the whole auth
-        // subgraph so Back from Home never lands on a sign-in screen for an
-        // account that is already signed in.
-        val toHome: () -> Unit = {
-            navController.navigate(Routes.HOME) {
-                popUpTo(Routes.AUTH) { inclusive = true }
+    CompositionLocalProvider(LocalWatchProgress provides watched) {
+        NavHost(
+            navController = navController,
+            startDestination = if (authState is AuthState.SignedIn) Routes.HOME else Routes.AUTH,
+        ) {
+            // Both sign-in routes converge here: clear the whole auth
+            // subgraph so Back from Home never lands on a sign-in screen for an
+            // account that is already signed in.
+            val toHome: () -> Unit = {
+                navController.navigate(Routes.HOME) {
+                    popUpTo(Routes.AUTH) { inclusive = true }
+                }
             }
-        }
 
-        composable(Routes.AUTH) {
-            AuthLandingScreen(
-                onChoosePhonePairing = { navController.navigate(Routes.PAIRING_QR) },
-                onChooseOnDevice = { navController.navigate(Routes.PAIRING_PHONE) },
-            )
-        }
+            composable(Routes.AUTH) {
+                AuthLandingScreen(
+                    onChoosePhonePairing = { navController.navigate(Routes.PAIRING_QR) },
+                    onChooseOnDevice = { navController.navigate(Routes.PAIRING_PHONE) },
+                )
+            }
 
-        composable(Routes.PAIRING_QR) {
-            QrPairingScreen(onPaired = toHome, onBack = { navController.popBackStack() })
-        }
+            composable(Routes.PAIRING_QR) {
+                QrPairingScreen(onPaired = toHome, onBack = { navController.popBackStack() })
+            }
 
-        composable(Routes.PAIRING_PHONE) {
-            PhoneLoginScreen(onSignedIn = toHome, onBack = { navController.popBackStack() })
-        }
+            composable(Routes.PAIRING_PHONE) {
+                PhoneLoginScreen(onSignedIn = toHome, onBack = { navController.popBackStack() })
+            }
 
-        composable(Routes.HOME) {
-            HomeScreen(
-                onSignOut = viewModel::signOut,
-                signingOut = signOutState.inProgress,
-                signOutError = signOutState.error,
-                onPostClick = { post ->
-                    navController.navigate(Routes.player(post.blogUrl, post.id))
-                },
-                onBlogClick = { blogUrl ->
-                    navController.navigate(Routes.blog(blogUrl))
-                },
-            )
-        }
+            composable(Routes.HOME) {
+                HomeScreen(
+                    onSignOut = viewModel::signOut,
+                    signingOut = signOutState.inProgress,
+                    signOutError = signOutState.error,
+                    onPostClick = { post ->
+                        navController.navigate(Routes.player(post.blogUrl, post.id))
+                    },
+                    onBlogClick = { blogUrl ->
+                        navController.navigate(Routes.blog(blogUrl))
+                    },
+                )
+            }
 
-        composable(
-            route = Routes.BLOG,
-            arguments = listOf(navArgument("blogUrl") { type = NavType.StringType }),
-        ) { entry ->
-            val blogUrl = entry.arguments?.getString("blogUrl").orEmpty()
-            BlogScreen(
-                blogUrl = blogUrl,
-                onBack = { navController.popBackStack() },
-                onPostClick = { post ->
-                    navController.navigate(Routes.player(post.blogUrl, post.id))
-                },
-            )
-        }
+            composable(
+                route = Routes.BLOG,
+                arguments = listOf(navArgument("blogUrl") { type = NavType.StringType }),
+            ) { entry ->
+                val blogUrl = entry.arguments?.getString("blogUrl").orEmpty()
+                BlogScreen(
+                    blogUrl = blogUrl,
+                    onBack = { navController.popBackStack() },
+                    onPostClick = { post ->
+                        navController.navigate(Routes.player(post.blogUrl, post.id))
+                    },
+                )
+            }
 
-        playerDestination(onClose = { navController.popBackStack() })
+            playerDestination(onClose = { navController.popBackStack() })
+        }
     }
 }
 
