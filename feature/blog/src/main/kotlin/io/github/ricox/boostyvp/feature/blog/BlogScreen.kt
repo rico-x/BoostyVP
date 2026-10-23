@@ -48,7 +48,7 @@ fun BlogScreen(
     // retried through retry() rather than by re-running the whole load.
     if (refreshState is LoadState.Error) {
         ErrorState(
-            title = "Не удалось загрузить видео",
+            title = "Не удалось загрузить публикации",
             detail = refreshState.error.message,
             onRetry = { posts.retry() },
         )
@@ -86,7 +86,7 @@ fun BlogScreen(
                 BlogHeader(blog = blog, blogUrl = blogUrl, onBack = onBack)
             }
             item(key = "videos_heading", span = { GridItemSpan(maxLineSpan) }) {
-                ScreenHeading("Видео автора")
+                ScreenHeading("Публикации автора")
             }
             if (posts.itemCount == 0) {
                 item(key = "blog_empty", span = { GridItemSpan(maxLineSpan) }) {
@@ -94,8 +94,8 @@ fun BlogScreen(
                         LoadingState(modifier = Modifier.height(180.dp))
                     } else {
                         EmptyState(
-                            title = "Пока нет видео",
-                            detail = "Здесь появятся видеопубликации автора.",
+                            title = "Пока нет публикаций",
+                            detail = "Здесь появятся публикации автора.",
                             modifier = Modifier.height(180.dp),
                         )
                     }

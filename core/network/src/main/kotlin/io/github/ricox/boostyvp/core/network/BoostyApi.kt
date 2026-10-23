@@ -1,6 +1,7 @@
 package io.github.ricox.boostyvp.core.network
 
 import io.github.ricox.boostyvp.core.network.dto.BlogDto
+import io.github.ricox.boostyvp.core.network.dto.CommentDto
 import io.github.ricox.boostyvp.core.network.dto.PagedResponse
 import io.github.ricox.boostyvp.core.network.dto.PostDto
 import io.github.ricox.boostyvp.core.network.dto.SubscriptionLevelDto
@@ -46,6 +47,21 @@ interface BoostyApi {
         @Query("comments_limit") commentsLimit: Int = 0,
         @Query("reply_limit") replyLimit: Int = 0,
     ): PostDto
+
+    /** Read-only; verified against Boosty's web client and public API 2026-10-23.
+     * `offset` is a comment intId, NOT a numeric item offset. With order=top,
+     * continue before the oldest returned intId. Replies use the same endpoint.
+     */
+    @GET("v1/blog/{blog}/post/{postId}/comment/")
+    suspend fun getComments(
+        @Path("blog") blog: String,
+        @Path("postId") postId: String,
+        @Query("offset") offset: String? = null,
+        @Query("parent_id") parentId: Long? = null,
+        @Query("limit") limit: Int = 20,
+        @Query("reply_limit") replyLimit: Int = 0,
+        @Query("order") order: String = "top",
+    ): PagedResponse<CommentDto>
 
     /** VERIFIED. */
     @GET("v1/blog/{blog}/subscription_level/")

@@ -88,7 +88,7 @@ fun PostRow(
                             color = LocalContentColor.current.copy(alpha = 0.75f),
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    Text("Все видео", style = MaterialTheme.typography.labelLarge, color = colors.primary)
+                    Text("Все публикации", style = MaterialTheme.typography.labelLarge, color = colors.primary)
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, null,
                         tint = colors.primary, modifier = Modifier.size(20.dp))
                 }

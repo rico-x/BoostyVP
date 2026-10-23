@@ -20,6 +20,8 @@ data class Post(
     val signedQuery: String?,
     val blocks: List<ContentBlock>,
     val teaser: List<ContentBlock>,
+    val commentCount: Int = 0,
+    val commentsDenied: Boolean = false,
 ) {
     /** Includes processing videos and video teasers of locked posts. */
     val hasVideo: Boolean

@@ -41,6 +41,7 @@ fun PlayerScreen(
 
     when (val current = state) {
         is PlayerUiState.Loading -> LoadingState()
+        is PlayerUiState.Publication -> PostReaderScreen(current.post, onClose)
 
         is PlayerUiState.Locked -> EmptyState(
             title = current.title,

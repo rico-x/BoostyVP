@@ -24,7 +24,12 @@ data class PostDto(
     val blog: BlogDto? = null,
     val data: List<ContentBlockDto> = emptyList(),
     val teaser: List<ContentBlockDto> = emptyList(),
+    val count: PostCountDto = PostCountDto(),
+    val isCommentsDenied: Boolean = false,
 )
+
+@Serializable
+data class PostCountDto(val comments: Int = 0)
 
 /**
  * A single flat DTO for every content block type.

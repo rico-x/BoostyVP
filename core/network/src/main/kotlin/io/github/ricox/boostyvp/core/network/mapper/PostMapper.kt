@@ -53,6 +53,8 @@ fun PostDto.toDomain(json: Json, fallbackBlogUrl: String = ""): Post = Post(
     signedQuery = signedQuery?.takeIf { it.isNotBlank() },
     blocks = data.toDomain(json),
     teaser = teaser.toDomain(json),
+    commentCount = count.comments.coerceAtLeast(0),
+    commentsDenied = isCommentsDenied,
 )
 
 /** Posts that should never reach the UI at all. */

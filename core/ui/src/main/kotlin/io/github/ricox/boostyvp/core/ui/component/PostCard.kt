@@ -62,8 +62,10 @@ fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier) {
         Column {
             Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)
                 .background(Brush.linearGradient(listOf(colors.surfaceVariant, colors.background)))) {
-                Icon(Icons.Default.PlayArrow, null, tint = colors.primary.copy(alpha = 0.5f),
+                if (post.hasVideo) Icon(Icons.Default.PlayArrow, null, tint = colors.primary.copy(alpha = 0.5f),
                     modifier = Modifier.align(Alignment.Center).size(44.dp))
+                else Text("Публикация", color = colors.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.Center))
                 if (post.thumbnailUrl != null) AsyncImage(
                     model = post.thumbnailUrl, contentDescription = null, contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
@@ -74,6 +76,7 @@ fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier) {
                     !post.hasAccess -> Badge(Icons.Default.Lock, "По подписке")
                     post.isWaitingVideo -> Badge(null, "Обрабатывается")
                     post.primaryVideo != null -> Badge(null, post.primaryVideo!!.duration.formatDuration())
+                    !post.hasVideo -> Badge(null, "Текст")
                 }
                 if (post.isPinned) Text("Закреплено", style = MaterialTheme.typography.labelSmall,
                     color = colors.onPrimary,

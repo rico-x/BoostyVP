@@ -17,7 +17,7 @@ class DefaultFeedRepository @Inject constructor(
     private val json: Json,
 ) : FeedRepository {
     override suspend fun feedPage(cursor: String?): Page<Post> =
-        videoPostPage(cursor) { next -> api.getFeed(offset = next).toPostPage(json) }
+        publicationPage(cursor) { next -> api.getFeed(offset = next).toPostPage(json) }
 
     override suspend fun subscriptions(limit: Int): List<Subscription> {
         require(limit > 0)

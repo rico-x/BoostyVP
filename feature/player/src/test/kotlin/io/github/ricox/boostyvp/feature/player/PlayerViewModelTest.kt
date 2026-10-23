@@ -39,6 +39,37 @@ class PlayerViewModelTest {
         return Post(id, 0, id, "blog", "Blog", 0, true, false, false, false, null, listOf(video), emptyList())
     }
 
+    @Test fun `text-only post opens a publication instead of an unplayable error`() = runTest(dispatcher) {
+        val article = post("text").copy(blocks = listOf(ContentBlock.Text("Full article", null)))
+        coEvery { blogs.post("blog", "text") } returns article
+        val model = PlayerViewModel(blogs, progress)
+        model.load("blog", "text")
+        advanceUntilIdle()
+        assertEquals(article, (model.state.value as PlayerUiState.Publication).post)
+        coVerify(exactly = 0) { progress.resumePositionMs(any(), any()) }
+    }
+
+    @Test fun `locked text keeps its access boundary and teaser`() = runTest(dispatcher) {
+        val article = post("locked").copy(hasAccess = false, blocks = emptyList(),
+            teaser = listOf(ContentBlock.Text("Preview only", null)))
+        coEvery { blogs.post("blog", "locked") } returns article
+        val model = PlayerViewModel(blogs, progress)
+        model.load("blog", "locked")
+        advanceUntilIdle()
+        assertEquals(article, (model.state.value as PlayerUiState.Publication).post)
+    }
+
+    @Test fun `external embed without playable URLs still opens the publication text`() = runTest(dispatcher) {
+        val original = post("embed")
+        val article = original.copy(blocks = listOf(ContentBlock.Text("Readable announcement", null),
+            (original.blocks.single() as ContentBlock.Video).copy(sources = emptyList())))
+        coEvery { blogs.post("blog", "embed") } returns article
+        val model = PlayerViewModel(blogs, progress)
+        model.load("blog", "embed")
+        advanceUntilIdle()
+        assertEquals(article, (model.state.value as PlayerUiState.Publication).post)
+    }
+
     @Test fun `a delayed previous load cannot replace the new video or its progress key`() = runTest(dispatcher) {
         coEvery { blogs.post("blog", "old") } coAnswers {
             withContext(NonCancellable) { delay(100) }

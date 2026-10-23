@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.ricox.boostyvp.core.domain.repository.BlogRepository
 import io.github.ricox.boostyvp.core.domain.repository.PlaybackProgressRepository
 import io.github.ricox.boostyvp.core.model.ContentBlock
+import io.github.ricox.boostyvp.core.model.Post
 import io.github.ricox.boostyvp.core.model.VideoSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -19,6 +20,7 @@ import javax.inject.Inject
 
 sealed interface PlayerUiState {
     data object Loading : PlayerUiState
+    data class Publication(val post: Post) : PlayerUiState
 
     data class Ready(
         val postId: String,
@@ -57,7 +59,7 @@ class PlayerViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                PlayerUiState.Failed(e.message ?: "Не удалось загрузить видео")
+                PlayerUiState.Failed("Не удалось загрузить публикацию. Проверьте соединение и повторите попытку.")
             }
         }
     }
@@ -68,13 +70,17 @@ class PlayerViewModel @Inject constructor(
         // minutes ago may already carry dead links.
         val post = blogRepository.post(blogUrl, postId)
 
+        if (!post.hasVideo) return PlayerUiState.Publication(post)
+
         if (!post.hasAccess) return PlayerUiState.Locked(post.title)
         if (post.isWaitingVideo) {
             return PlayerUiState.Unplayable(post.title, "Автор уже загрузил видео. Оно появится здесь, когда Boosty закончит обработку.")
         }
 
         val video = post.primaryVideo
-            ?: return PlayerUiState.Unplayable(post.title, "В этой публикации пока нет доступного видео.")
+            // External embeds may be typed "video" without playable URLs.
+            // They still have a readable body and must not become an error.
+            ?: return PlayerUiState.Publication(post)
 
         val candidates = playbackCandidates(video)
         if (candidates.isEmpty()) {

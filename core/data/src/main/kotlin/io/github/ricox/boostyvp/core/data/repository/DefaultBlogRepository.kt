@@ -22,12 +22,12 @@ class DefaultBlogRepository @Inject constructor(
         api.getPost(blogUrl, postId).toDomain(json, fallbackBlogUrl = blogUrl)
 
     override suspend fun postsPage(blogUrl: String, cursor: String?): Page<Post> =
-        videoPostPage(cursor) { next ->
+        publicationPage(cursor) { next ->
             api.getBlogPosts(blogUrl, offset = next).toPostPage(json, blogUrl)
         }
 
     override suspend fun recentPosts(blogUrl: String, limit: Int): List<Post> =
-        videoPostPage(null) { cursor ->
+        publicationPage(null) { cursor ->
             api.getBlogPosts(blogUrl, limit = limit, offset = cursor).toPostPage(json, blogUrl)
         }.items
 }

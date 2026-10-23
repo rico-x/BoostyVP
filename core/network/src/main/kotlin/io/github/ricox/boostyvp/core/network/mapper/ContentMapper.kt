@@ -37,7 +37,8 @@ internal fun decodeTextContent(json: Json, content: JsonElement?): String {
         val first = (parsed as? JsonArray)?.firstOrNull()
         (first as? JsonPrimitive)?.contentOrNull ?: raw
     } catch (e: Exception) {
-        Log.d(TAG, "Text block was not the expected wrapper; using raw value", e)
+        // Parser exceptions can include private post text; never log them.
+        Log.d(TAG, "Text block was not the expected wrapper; using raw value")
         raw
     }
 }
@@ -89,9 +90,9 @@ internal fun PlayerUrlDto.toVideoSourceOrNull(): VideoSource? {
 
 internal fun ContentBlockDto.toDomain(json: Json): ContentBlock = when (type) {
 
-    "text" -> ContentBlock.Text(
+    "text", "header" -> ContentBlock.Text(
         text = decodeTextContent(json, content),
-        modificator = modificator,
+        modificator = if (type == "header") "HEADER" else modificator,
     )
 
     "image" -> ContentBlock.Image(

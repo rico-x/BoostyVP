@@ -83,7 +83,7 @@ fun HomeLayout(
                 Column(Modifier.padding(start = 24.dp, end = Overscan.Horizontal,
                     top = Overscan.Vertical, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Ваши подписки", style = MaterialTheme.typography.headlineSmall)
-                    Text("Новые видеопубликации по авторам", style = MaterialTheme.typography.bodySmall,
+                    Text("Новые публикации по авторам", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 // This focus target stays attached even after the first author
@@ -94,7 +94,7 @@ fun HomeLayout(
                         is HomeUiState.Error -> ErrorState(detail = state.message, onRetry = onRefresh)
                         is HomeUiState.NoSubscriptions -> EmptyState(
                             title = "Здесь будут ваши авторы",
-                            detail = "Подпишитесь на авторов на boosty.to — их видео появятся на вашем ТВ.",
+                            detail = "Подпишитесь на авторов на boosty.to — их публикации появятся на вашем ТВ.",
                         )
                         is HomeUiState.Content -> HomeContent(state, onPostClick, onBlogClick, menuFocus)
                     }
@@ -113,7 +113,7 @@ private fun HomeContent(
 ) {
     val rows = state.rows.filter { it.posts.isNotEmpty() }
     if (rows.isEmpty()) {
-        EmptyState(title = "Видео ещё впереди", detail = "Новые видеопубликации ваших авторов появятся здесь.")
+        EmptyState(title = "Публикации ещё впереди", detail = "Новые публикации ваших авторов появятся здесь.")
         return
     }
     val listState = rememberLazyListState()
