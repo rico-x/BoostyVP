@@ -26,6 +26,7 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -34,9 +35,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.ricox.boostyvp.core.model.Post
-import io.github.ricox.boostyvp.core.ui.appearance.CardSizePreferences
-import io.github.ricox.boostyvp.core.ui.appearance.CardSizeSettingsDialog
-import io.github.ricox.boostyvp.core.ui.appearance.LocalCardSize
+import io.github.ricox.boostyvp.core.ui.appearance.InterfaceSettingsDialog
+import io.github.ricox.boostyvp.core.ui.appearance.LocalInterfaceOptions
 import io.github.ricox.boostyvp.core.ui.component.EmptyState
 import io.github.ricox.boostyvp.core.ui.component.ErrorState
 import io.github.ricox.boostyvp.core.ui.component.LoadingState
@@ -68,14 +68,12 @@ fun HomeScreen(
     val preferences = remember(context) { PlayerPreferences(context) }
     var options by remember { mutableStateOf(preferences.load()) }
     var showPlayerSettings by rememberSaveable { mutableStateOf(false) }
-    val cardPreferences = remember(context) { CardSizePreferences(context) }
-    var showCardSettings by rememberSaveable { mutableStateOf(false) }
+    var showInterfaceSettings by rememberSaveable { mutableStateOf(false) }
     HomeLayout(state, onPostClick, onBlogClick, { showSignOut = true }, viewModel::refresh,
         onPlayerSettings = { options = preferences.load(); showPlayerSettings = true },
-        onInterfaceSettings = { showCardSettings = true },
+        onInterfaceSettings = { showInterfaceSettings = true },
         newPosts = newFeedViewModel.posts, continueWatching = continueWatching)
-    if (showCardSettings) CardSizeSettingsDialog(LocalCardSize.current,
-        onChange = cardPreferences::save, onDismiss = { showCardSettings = false })
+    if (showInterfaceSettings) InterfaceSettingsDialog(onDismiss = { showInterfaceSettings = false })
     if (showPlayerSettings) PlayerSettingsDialog(options, onChange = {
         options = it
         preferences.save(it)
@@ -103,6 +101,8 @@ fun HomeLayout(
     val contentFocus = remember { FocusRequester() }
     var section by rememberSaveable { mutableStateOf(HomeSection.Subscriptions) }
     var focusMenu by remember { mutableStateOf(false) }
+    var menuExpanded by remember { mutableStateOf(true) }
+    val interfaceOptions = LocalInterfaceOptions.current
     // Survives section switches and the player dialog, like the author grid.
     val newGridState = rememberLazyGridState()
     // Collected only while "Новое" is shown: Home itself never requests the feed.
@@ -136,6 +136,8 @@ fun HomeLayout(
                 menuFocus = menuFocus, contentFocus = contentFocus, hasContent = hasContent,
                 onRefresh = { if (newItems != null) newItems.refresh() else onRefresh() },
                 onSettings = onPlayerSettings, onInterfaceSettings = onInterfaceSettings, onSignOut = onSignOut,
+                expanded = !interfaceOptions.autoCollapseSidebar || menuExpanded,
+                onMenuFocused = { menuExpanded = true },
             )
             Column(Modifier.weight(1f)) {
                 Column(Modifier.padding(start = 24.dp, end = Overscan.Horizontal,
@@ -152,6 +154,7 @@ fun HomeLayout(
                 // heading has been recycled by LazyColumn. Leaving it to the left
                 // from any card returns to the selected menu item.
                 Box(Modifier.weight(1f).focusRequester(contentFocus)
+                    .onFocusChanged { if (it.hasFocus) menuExpanded = false }
                     .focusProperties {
                         exit = { if (it == FocusDirection.Left) menuFocus else FocusRequester.Default }
                     }
@@ -188,9 +191,10 @@ private fun HomeContent(
         return
     }
     val listState = rememberLazyListState()
+    val density = LocalInterfaceOptions.current.density
     LazyColumn(
         state = listState, modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(density.rowGapDp.dp),
         contentPadding = PaddingValues(bottom = Overscan.Vertical),
     ) {
         if (continueWatching.isNotEmpty()) item(key = "continue_watching") {

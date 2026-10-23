@@ -18,8 +18,8 @@ enum class CardSize(
     fun step(delta: Int): CardSize = entries[(ordinal + delta).coerceIn(0, entries.lastIndex)]
 
     /** Same spacing and rounding as the catalog's adaptive grid; counts fully visible row cards. */
-    fun cardsPerRow(availableWidthDp: Float): Int =
-        ((availableWidthDp.coerceAtLeast(0f) + GAP_DP) / (widthDp + GAP_DP)).toInt().coerceAtLeast(1)
+    fun cardsPerRow(availableWidthDp: Float, gapDp: Int = GAP_DP): Int =
+        ((availableWidthDp.coerceAtLeast(0f) + gapDp) / (widthDp + gapDp)).toInt().coerceAtLeast(1)
 
     companion object {
         val Default = Large

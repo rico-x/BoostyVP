@@ -67,13 +67,16 @@ fun CardSizeSettingsDialog(
     onDismiss: () -> Unit,
 ) {
     val sliderFocus = remember { FocusRequester() }
+    val options = LocalInterfaceOptions.current
+    val gap = options.density.horizontalGapDp
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(
         usePlatformDefaultWidth = false, decorFitsSystemWindows = false,
     )) {
         BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
             // Match the real content widths (sidebar/overscan/padding), not the preview panel width.
-            val homeWidth = (maxWidth - 192.dp - 24.dp * 2).coerceAtLeast(1.dp)
-            val newWidth = (maxWidth - 192.dp - 24.dp - Overscan.Horizontal).coerceAtLeast(1.dp)
+            val sidebarWidth = BrowseDimensions.contentSidebarWidth(options).dp
+            val homeWidth = (maxWidth - sidebarWidth - 24.dp * 2).coerceAtLeast(1.dp)
+            val newWidth = (maxWidth - sidebarWidth - 24.dp - Overscan.Horizontal).coerceAtLeast(1.dp)
             val blogWidth = (maxWidth - Overscan.Horizontal * 2).coerceAtLeast(1.dp)
             Column(Modifier.fillMaxSize().padding(horizontal = Overscan.Horizontal, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -86,14 +89,14 @@ fun CardSizeSettingsDialog(
                 Text("← → меняют размер · OK или Назад — закрыть. Выбор сохраняется автоматически.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 CardSizeSlider(size, onChange, onDismiss, Modifier.focusRequester(sliderFocus))
-                Text("Карточек в строке: подписки — ${size.cardsPerRow(homeWidth.value)} · " +
-                    "«Новое» — ${size.cardsPerRow(newWidth.value)} · автор — ${size.cardsPerRow(blogWidth.value)}",
+                Text("Карточек в строке: подписки — ${size.cardsPerRow(homeWidth.value, gap)} · " +
+                    "«Новое» — ${size.cardsPerRow(newWidth.value, gap)} · автор — ${size.cardsPerRow(blogWidth.value, gap)}",
                     style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("card_size_count"))
                 // Real card layout, no account data, image downloads or extra remote focus stops.
                 Box(Modifier.weight(1f).fillMaxWidth().clipToBounds(), contentAlignment = Alignment.Center) {
                     CompositionLocalProvider(LocalCardSize provides size) {
                         LazyRow(Modifier.width(homeWidth), userScrollEnabled = false,
-                            horizontalArrangement = Arrangement.spacedBy(CardSize.GAP_DP.dp)) {
+                            horizontalArrangement = Arrangement.spacedBy(gap.dp)) {
                             itemsIndexed(PreviewPosts) { index, post ->
                                 PostCard(post, {}, Modifier.focusProperties { canFocus = false }
                                     .testTag("card_size_preview_$index"))

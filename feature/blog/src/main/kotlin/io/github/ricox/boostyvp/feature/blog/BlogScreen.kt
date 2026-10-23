@@ -19,6 +19,7 @@ import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.ricox.boostyvp.core.model.Post
 import io.github.ricox.boostyvp.core.ui.appearance.LocalCardSize
+import io.github.ricox.boostyvp.core.ui.appearance.LocalInterfaceOptions
 import io.github.ricox.boostyvp.core.ui.component.EmptyState
 import io.github.ricox.boostyvp.core.ui.component.ErrorState
 import io.github.ricox.boostyvp.core.ui.component.LoadingState
@@ -40,6 +41,7 @@ fun BlogScreen(
     val headerError by viewModel.error.collectAsStateWithLifecycle()
     val posts = viewModel.posts.collectAsLazyPagingItems()
     val gridState = rememberLazyGridState()
+    val density = LocalInterfaceOptions.current.density
 
     val refreshState = posts.loadState.refresh
 
@@ -71,8 +73,8 @@ fun BlogScreen(
         LazyVerticalGrid(
             state = gridState,
             columns = GridCells.Adaptive(minSize = LocalCardSize.current.widthDp.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+            horizontalArrangement = Arrangement.spacedBy(density.horizontalGapDp.dp),
+            verticalArrangement = Arrangement.spacedBy(density.gridGapDp.dp),
             contentPadding = PaddingValues(
                 start = Overscan.Horizontal,
                 end = Overscan.Horizontal,

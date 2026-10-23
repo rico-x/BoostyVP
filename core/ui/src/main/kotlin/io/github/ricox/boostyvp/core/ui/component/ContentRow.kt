@@ -38,6 +38,7 @@ import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import io.github.ricox.boostyvp.core.model.Post
+import io.github.ricox.boostyvp.core.ui.appearance.LocalInterfaceOptions
 import io.github.ricox.boostyvp.core.ui.theme.Overscan
 import kotlinx.coroutines.launch
 
@@ -61,6 +62,7 @@ fun PostRow(
     val firstPostFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
     val colors = MaterialTheme.colorScheme
+    val density = LocalInterfaceOptions.current.density
     val name = authorName?.takeIf { it.isNotBlank() } ?: title
     Column(modifier.fillMaxWidth()) {
         if (onTitleClick != null) {
@@ -69,7 +71,7 @@ fun PostRow(
                 onClick = onTitleClick,
                 modifier = titleModifier.padding(horizontal = horizontalPadding).fillMaxWidth()
                     .focusProperties { if (menuFocus != null) left = menuFocus },
-                contentPadding = PaddingValues(6.dp),
+                contentPadding = PaddingValues(density.headingPaddingDp.dp),
                 shape = ButtonDefaults.shape(shape),
                 colors = ButtonDefaults.colors(containerColor = Color.Transparent, contentColor = colors.onSurface,
                     focusedContainerColor = colors.surfaceVariant, focusedContentColor = colors.onSurface),
@@ -79,7 +81,7 @@ fun PostRow(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    AuthorAvatar(name, avatarUrl, size = 36.dp)
+                    AuthorAvatar(name, avatarUrl, size = density.avatarDp.dp)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(name, style = MaterialTheme.typography.titleMedium,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -99,9 +101,9 @@ fun PostRow(
         }
         LazyRow(
             state = rowState,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(density.horizontalGapDp.dp),
             contentPadding = PaddingValues(start = horizontalPadding, end = horizontalPadding,
-                top = 10.dp, bottom = 10.dp),
+                top = density.rowPaddingDp.dp, bottom = density.rowPaddingDp.dp),
             modifier = Modifier
                 .focusProperties {
                     enter = { direction ->
@@ -125,6 +127,7 @@ fun PostRow(
                 PostCard(
                     post,
                     onClick = { onPostClick(post) },
+                    inAuthorRow = onTitleClick != null,
                     modifier = if (index == 0) Modifier.focusRequester(firstPostFocus)
                         .focusProperties { if (menuFocus != null) left = menuFocus } else Modifier,
                 )
