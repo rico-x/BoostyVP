@@ -9,6 +9,7 @@ import android.widget.TextView
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import io.github.ricox.boostyvp.core.ui.R as UiR
+import io.github.ricox.boostyvp.core.ui.appearance.InterfacePreferences
 import androidx.media3.common.C
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
@@ -110,6 +111,7 @@ internal class VideoQualityController(
         val labels = arrayOf("Авто", *heights.map { "${it}p" }.toTypedArray())
         val checked = selectedHeight?.let { heights.indexOf(it) + 1 } ?: 0
         val previousTimeout = playerView.controllerShowTimeoutMs
+        val appearance = InterfacePreferences(playerView.context).load()
         playerView.controllerShowTimeoutMs = 0
         dialog = AlertDialog.Builder(playerView.context)
             .setCustomTitle(TextView(playerView.context).apply {
@@ -136,16 +138,16 @@ internal class VideoQualityController(
                 }
                 show()
                 window?.setBackgroundDrawable(GradientDrawable().apply {
-                    setColor(playerView.context.getColor(UiR.color.boostyvp_surface))
+                    setColor(appearance.theme.surface)
                     cornerRadius = playerView.context.playerDp(24).toFloat()
                     setStroke(playerView.context.playerDp(1), playerView.context.getColor(UiR.color.boostyvp_border))
                 })
                 listView.selector = GradientDrawable().apply {
-                    setColor(playerView.context.getColor(UiR.color.boostyvp_surface_raised))
+                    setColor(appearance.theme.raised)
                     cornerRadius = playerView.context.playerDp(12).toFloat()
-                    setStroke(playerView.context.playerDp(2), playerView.context.getColor(UiR.color.boostyvp_accent))
+                    setStroke(playerView.context.playerDp(2), appearance.accent.argb)
                 }
-                getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(playerView.context.getColor(UiR.color.boostyvp_accent))
+                getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(appearance.accent.argb)
             }
     }
 

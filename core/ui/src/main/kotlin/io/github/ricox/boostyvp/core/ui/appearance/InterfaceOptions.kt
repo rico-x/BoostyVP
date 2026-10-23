@@ -10,8 +10,23 @@ data class InterfaceOptions(
     val showDuration: Boolean = true,
     val hideRepeatedAuthor: Boolean = false,
     val density: CatalogDensity = CatalogDensity.Normal,
+    val cardStyle: CardStyle = CardStyle.Filled,
+    val focusColor: FocusColor = FocusColor.White,
+    val focusWidth: Int = 3,
+    val focusZoom: Boolean = true,
+    val animateFocus: Boolean = true,
+    val fullTitle: Boolean = false,
+    val authorHeader: AuthorHeaderSize = AuthorHeaderSize.Spacious,
+    val theme: DarkTheme = DarkTheme.Graphite,
+    val accent: AccentColor = AccentColor.Red,
+    val playerLayout: PlayerPanelLayout = PlayerPanelLayout.Center,
+    val playerText: PlayerTextSize = PlayerTextSize.Normal,
+    val playerThickSeekBar: Boolean = false,
+    val playerClock: Boolean = false,
+    val playerEndTime: Boolean = false,
 ) {
-    fun normalized() = copy(titleLines = titleLines.takeIf { it in 1..3 } ?: 2)
+    fun normalized() = copy(titleLines = titleLines.takeIf { it in 1..3 } ?: 2,
+        focusWidth = focusWidth.takeIf { it in 1..4 } ?: 3)
     fun showsAuthor(inAuthorRow: Boolean) = showAuthor && !(inAuthorRow && hideRepeatedAuthor)
 }
 

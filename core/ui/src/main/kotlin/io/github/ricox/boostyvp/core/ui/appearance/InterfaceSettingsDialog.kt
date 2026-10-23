@@ -114,6 +114,68 @@ fun InterfaceSettingsDialog(onDismiss: () -> Unit) {
                         InterfaceChoice("Длительность видео", listOf("Скрывать", "Показывать"), if (options.showDuration) 1 else 0,
                             { preferences.save(options.copy(showDuration = it == 1)) }, "interface_duration")
                     }
+                    item { Text("Карточки и выделение", style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = 12.dp)) }
+                    item(key = "card_style") {
+                        InterfaceChoice("Оформление карточек", CardStyle.entries.map { it.label }, options.cardStyle.ordinal,
+                            { preferences.save(options.copy(cardStyle = CardStyle.entries[it])) }, "interface_card_style")
+                    }
+                    item(key = "focus_color") {
+                        InterfaceChoice("Цвет рамки", FocusColor.entries.map { it.label }, options.focusColor.ordinal,
+                            { preferences.save(options.copy(focusColor = FocusColor.entries[it])) }, "interface_focus_color")
+                    }
+                    item(key = "focus_width") {
+                        InterfaceChoice("Толщина рамки", (1..4).map { "$it dp" }, options.focusWidth - 1,
+                            { preferences.save(options.copy(focusWidth = it + 1)) }, "interface_focus_width")
+                    }
+                    item(key = "focus_zoom") {
+                        InterfaceChoice("Увеличивать выбранную карточку", listOf("Нет", "Да"), if (options.focusZoom) 1 else 0,
+                            { preferences.save(options.copy(focusZoom = it == 1)) }, "interface_focus_zoom")
+                    }
+                    item(key = "focus_animation") {
+                        InterfaceChoice("Анимация выделения карточек", listOf("Нет", "Да"), if (options.animateFocus) 1 else 0,
+                            { preferences.save(options.copy(animateFocus = it == 1)) }, "interface_focus_animation")
+                    }
+                    item(key = "full_title") {
+                        InterfaceChoice("Полное название при выделении", listOf("Нет", "Статичная подсказка"), if (options.fullTitle) 1 else 0,
+                            { preferences.save(options.copy(fullTitle = it == 1)) }, "interface_full_title")
+                    }
+                    item { Text("Страница автора и тема", style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = 12.dp)) }
+                    item(key = "author_header") {
+                        InterfaceChoice("Шапка страницы автора", AuthorHeaderSize.entries.map { it.label }, options.authorHeader.ordinal,
+                            { preferences.save(options.copy(authorHeader = AuthorHeaderSize.entries[it])) }, "interface_author_header")
+                    }
+                    item(key = "theme") {
+                        InterfaceChoice("Тёмная тема", DarkTheme.entries.map { it.label }, options.theme.ordinal,
+                            { preferences.save(options.copy(theme = DarkTheme.entries[it])) }, "interface_theme")
+                    }
+                    item(key = "accent") {
+                        InterfaceChoice("Акцент интерфейса", AccentColor.entries.map { it.label }, options.accent.ordinal,
+                            { preferences.save(options.copy(accent = AccentColor.entries[it])) }, "interface_accent")
+                    }
+                    item { Text("Внешний вид плеера · со следующего видео", style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = 12.dp)) }
+                    item(key = "player_layout") {
+                        InterfaceChoice("Панель управления", PlayerPanelLayout.entries.map { it.label }, options.playerLayout.ordinal,
+                            { preferences.save(options.copy(playerLayout = PlayerPanelLayout.entries[it])) }, "interface_player_layout")
+                    }
+                    item(key = "player_text") {
+                        InterfaceChoice("Время в плеере", PlayerTextSize.entries.map { it.label }, options.playerText.ordinal,
+                            { preferences.save(options.copy(playerText = PlayerTextSize.entries[it])) }, "interface_player_text")
+                    }
+                    item(key = "player_seek_bar") {
+                        InterfaceChoice("Утолщённая шкала перемотки", listOf("Нет", "Да"), if (options.playerThickSeekBar) 1 else 0,
+                            { preferences.save(options.copy(playerThickSeekBar = it == 1)) }, "interface_player_seek_bar")
+                    }
+                    item(key = "player_clock") {
+                        InterfaceChoice("Часы на панели плеера", listOf("Нет", "Да"), if (options.playerClock) 1 else 0,
+                            { preferences.save(options.copy(playerClock = it == 1)) }, "interface_player_clock")
+                    }
+                    item(key = "player_end_time") {
+                        InterfaceChoice("Расчётное время окончания", listOf("Нет", "Да"), if (options.playerEndTime) 1 else 0,
+                            { preferences.save(options.copy(playerEndTime = it == 1)) }, "interface_player_end_time")
+                    }
                 }
                 Column(Modifier.width(320.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Ряд автора «Автор примера»", style = MaterialTheme.typography.titleMedium)
@@ -121,7 +183,7 @@ fun InterfaceSettingsDialog(onDismiss: () -> Unit) {
                         PostCard(PreviewPost, {}, Modifier.focusProperties { canFocus = false }
                             .testTag("interface_preview"), inAuthorRow = true)
                     }
-                    Text("Текст не зависит от размера обложки.\nПлотность меняет отступы, а не размер шрифта.",
+                    Text("Текст и обложки независимы. Подсказка названия не забирает управление.\nНастройки плеера применяются при открытии видео.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

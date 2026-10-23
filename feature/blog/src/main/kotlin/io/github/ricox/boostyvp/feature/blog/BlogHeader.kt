@@ -21,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -32,15 +33,22 @@ import io.github.ricox.boostyvp.core.model.Blog
 import io.github.ricox.boostyvp.core.ui.component.AuthorAvatar
 import io.github.ricox.boostyvp.core.ui.component.BackButton
 import io.github.ricox.boostyvp.core.ui.component.StatusChip
+import io.github.ricox.boostyvp.core.ui.appearance.AuthorHeaderSize
+import io.github.ricox.boostyvp.core.ui.appearance.LocalInterfaceOptions
 import java.text.NumberFormat
 
 @Composable
-internal fun BlogHeader(blog: Blog?, blogUrl: String, onBack: () -> Unit) {
+fun BlogHeader(blog: Blog?, blogUrl: String, onBack: () -> Unit) {
     val name = blog?.ownerName?.takeIf { it.isNotBlank() }
         ?: blog?.title?.takeIf { it.isNotBlank() } ?: blogUrl
     val colors = MaterialTheme.colorScheme
+    val density = LocalInterfaceOptions.current.authorHeader
+    if (density != AuthorHeaderSize.Spacious) {
+        CompactBlogHeader(blog, blogUrl, name, density, onBack)
+        return
+    }
     val shape = RoundedCornerShape(24.dp)
-    Box(Modifier.fillMaxWidth().clip(shape).border(1.dp, colors.border.copy(alpha = 0.5f), shape)) {
+    Box(Modifier.fillMaxWidth().testTag("author_header").clip(shape).border(1.dp, colors.border.copy(alpha = 0.5f), shape)) {
         Box(Modifier.matchParentSize().background(Brush.horizontalGradient(
             listOf(colors.surfaceVariant, colors.surface, colors.primary.copy(alpha = 0.12f))))) {
             if (blog?.coverUrl != null) AsyncImage(blog.coverUrl, null, contentScale = ContentScale.Crop,
@@ -71,6 +79,40 @@ internal fun BlogHeader(blog: Blog?, blogUrl: String, onBack: () -> Unit) {
                         style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CompactBlogHeader(blog: Blog?, url: String, name: String, size: AuthorHeaderSize, onBack: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val reduced = size == AuthorHeaderSize.Reduced
+    val minimal = size == AuthorHeaderSize.Minimal
+    val count = blog?.postCount?.takeIf { it > 0 }?.let {
+        " · ${NumberFormat.getIntegerInstance().format(it)} публикаций"
+    }.orEmpty()
+    Column(Modifier.fillMaxWidth().testTag("author_header")
+        .background(colors.surface, RoundedCornerShape(16.dp))
+        .padding(size.paddingDp.dp), verticalArrangement = Arrangement.spacedBy(if (reduced) 12.dp else 4.dp)) {
+        if (reduced) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically) {
+            BackButton(onBack)
+            if (blog?.isSubscribed == true) StatusChip("Вы подписаны", icon = Icons.Default.Check)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(if (minimal) 8.dp else 16.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            if (!reduced) BackButton(onBack)
+            AuthorAvatar(name, blog?.avatarUrl, size = size.avatarDp.dp)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(if (minimal) 0.dp else 4.dp)) {
+                Text(name, style = if (reduced) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
+                    maxLines = if (reduced) 2 else 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.semantics { heading() })
+                Text("@$url$count", style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (reduced && !blog?.title.isNullOrBlank() && blog?.title != name) Text(blog!!.title,
+                    style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (!reduced && blog?.isSubscribed == true) StatusChip("Вы подписаны", icon = Icons.Default.Check)
         }
     }
 }

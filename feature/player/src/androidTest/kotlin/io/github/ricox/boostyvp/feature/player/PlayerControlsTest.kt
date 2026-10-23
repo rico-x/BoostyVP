@@ -7,6 +7,9 @@ import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.View
 import android.widget.Button
+import android.widget.TextView
+import android.widget.FrameLayout
+import android.view.Gravity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
@@ -32,10 +35,12 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.After
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import androidx.media3.ui.R as MediaR
+import io.github.ricox.boostyvp.core.ui.appearance.*
 
 @RunWith(AndroidJUnit4::class)
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
@@ -50,6 +55,62 @@ class PlayerControlsTest {
         // Google TV can be Dreaming while its display is still on. wakeUp()
         // alone skips that state; an explicit wake key dismisses the dream.
         device.pressKeyCode(KeyEvent.KEYCODE_WAKEUP)
+        clearVisualPreferences()
+    }
+
+    @After fun restoreVisualPreferences() = clearVisualPreferences()
+
+    private fun clearVisualPreferences() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        check(context.packageName != "io.github.ricox.boostyvp")
+        context.getSharedPreferences("interface_preferences", Context.MODE_PRIVATE).edit().clear().commit()
+    }
+
+    @Test fun lowerPanelLargeTimeAndClockKeepNativePauseAndBack() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        InterfacePreferences(context).save(InterfaceOptions(playerLayout = PlayerPanelLayout.Lower,
+            playerText = PlayerTextSize.Largest, playerThickSeekBar = true, playerClock = true, playerEndTime = true,
+            theme = DarkTheme.Black, accent = AccentColor.Teal))
+        screen()
+        compose.runOnIdle {
+            val panel = view.findViewById<View>(MediaR.id.exo_center_controls)
+            assertEquals(Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL, (panel.layoutParams as FrameLayout.LayoutParams).gravity)
+            assertEquals(23f * context.resources.displayMetrics.scaledDensity,
+                view.findViewById<TextView>(MediaR.id.exo_position).textSize, 0.1f)
+            assertEquals(1.5f, view.findViewById<View>(MediaR.id.exo_progress).scaleY)
+        }
+        compose.waitUntil(3_000) { compose.runOnIdle {
+            view.findViewWithTag<TextView>("player_clock").text.contains("Окончание ≈")
+        } }
+        device.takeScreenshot(File(context.getExternalFilesDir(null), "player-lower-clock.png"))
+        device.pressKeyCode(KeyEvent.KEYCODE_MEDIA_PAUSE)
+        compose.waitUntil(3_000) { compose.runOnIdle {
+            !view.player!!.playWhenReady && view.findViewWithTag<TextView>("player_clock").text.contains("на паузе")
+        } }
+        device.pressBack()
+        awaitHiddenControlsOrDismissal()
+        compose.runOnIdle {
+            assertFalse(dismissed)
+            assertFalse(view.findViewWithTag<TextView>("player_clock").isShown)
+            assertOverlayHidden()
+        }
+    }
+
+    @Test fun lowerPanelKeepsTimeBarDpadSeekingAndFocus() {
+        InterfacePreferences(InstrumentationRegistry.getInstrumentation().targetContext).save(
+            InterfaceOptions(playerLayout = PlayerPanelLayout.Lower, playerText = PlayerTextSize.Large,
+                playerThickSeekBar = true))
+        screen()
+        val before = compose.runOnIdle {
+            view.player!!.pause()
+            assertTrue(view.findViewById<View>(MediaR.id.exo_progress).requestFocus())
+            view.player!!.currentPosition
+        }
+        device.pressDPadRight()
+        // Native time bar commits scrubbing with OK; no custom seek handler.
+        device.pressDPadCenter()
+        compose.waitUntil(3_000) { compose.runOnIdle { view.player!!.currentPosition > before } }
+        compose.runOnIdle { assertFalse(dismissed); assertTrue(view.hasFocus()) }
     }
 
     @Test fun menuKeyShowsControlsWithoutPausingOrClosingVideo() {
@@ -298,6 +359,7 @@ class PlayerControlsTest {
             .setAvailableCommands(Player.Commands.Builder().addAll(
                 Player.COMMAND_PLAY_PAUSE, Player.COMMAND_GET_CURRENT_MEDIA_ITEM,
                 Player.COMMAND_GET_TIMELINE, Player.COMMAND_SEEK_BACK, Player.COMMAND_SEEK_FORWARD,
+                Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM,
             ).build())
             .setPlaybackState(Player.STATE_READY)
             .setPlayWhenReady(playing, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)

@@ -17,12 +17,14 @@ import androidx.media3.ui.DefaultTimeBar
 import androidx.media3.ui.PlayerControlView
 import androidx.media3.ui.PlayerView
 import io.github.ricox.boostyvp.core.ui.R as UiR
+import io.github.ricox.boostyvp.core.ui.appearance.InterfacePreferences
+import io.github.ricox.boostyvp.core.ui.appearance.PlayerPanelLayout
 
 internal fun Context.playerDp(value: Int) = (value * resources.displayMetrics.density).toInt()
 
 internal fun playerControlBackground(context: Context): StateListDrawable {
     val radius = context.playerDp(8).toFloat()
-    val focused = context.getColor(UiR.color.boostyvp_surface_raised)
+    val focused = InterfacePreferences(context).load().theme.raised
     return StateListDrawable().apply {
         addState(intArrayOf(android.R.attr.state_focused), GradientDrawable().apply {
             setColor(focused); cornerRadius = radius
@@ -47,7 +49,8 @@ internal fun playerControlTextColors(context: Context) = ColorStateList(
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 internal fun applyPlayerAppearance(playerView: PlayerView, title: String) {
     val context = playerView.context
-    val accent = context.getColor(UiR.color.boostyvp_accent)
+    val options = InterfacePreferences(context).load()
+    val accent = options.accent.argb
     playerView.findViewById<View>(androidx.media3.ui.R.id.exo_controls_background)?.background =
         GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(
             0xDA0E0F12.toInt(), 0x220E0F12, 0xEE0E0F12.toInt()))
@@ -56,6 +59,8 @@ internal fun applyPlayerAppearance(playerView: PlayerView, title: String) {
         setScrubberColor(accent)
         setBufferedColor(0x99FFFFFF.toInt())
         setUnplayedColor(0x44FFFFFF)
+        // Scale the drawing, not the time axis or seek increments / focus target.
+        scaleY = if (options.playerThickSeekBar) 1.5f else 1f
         (layoutParams as? FrameLayout.LayoutParams)?.let { params ->
             params.leftMargin = context.playerDp(48)
             params.rightMargin = context.playerDp(48)
@@ -64,11 +69,19 @@ internal fun applyPlayerAppearance(playerView: PlayerView, title: String) {
         }
     }
     playerView.findViewById<View>(androidx.media3.ui.R.id.exo_bottom_bar)?.apply {
-        background = GradientDrawable().apply { setColor(0xEE191C22.toInt()); cornerRadius = context.playerDp(16).toFloat() }
+        background = GradientDrawable().apply { setColor(options.theme.surface); cornerRadius = context.playerDp(16).toFloat() }
         (layoutParams as? FrameLayout.LayoutParams)?.let { params ->
             params.leftMargin = context.playerDp(48)
             params.rightMargin = context.playerDp(48)
             params.bottomMargin = context.playerDp(27)
+            layoutParams = params
+        }
+    }
+    playerView.findViewById<View>(androidx.media3.ui.R.id.exo_center_controls)?.apply {
+        (layoutParams as? FrameLayout.LayoutParams)?.let { params ->
+            params.gravity = if (options.playerLayout == PlayerPanelLayout.Lower)
+                Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL else Gravity.CENTER
+            params.bottomMargin = if (options.playerLayout == PlayerPanelLayout.Lower) context.playerDp(140) else 0
             layoutParams = params
         }
     }
@@ -108,6 +121,9 @@ internal fun applyPlayerAppearance(playerView: PlayerView, title: String) {
     }
     playerView.findViewById<PlayerControlView>(androidx.media3.ui.R.id.exo_controller)?.let { controls ->
         styleChildren(controls)
+        listOf(androidx.media3.ui.R.id.exo_position, androidx.media3.ui.R.id.exo_duration).forEach { id ->
+            controls.findViewById<TextView>(id)?.textSize = options.playerText.timeSp.toFloat()
+        }
         controls.addView(TextView(context).apply {
             text = title
             textSize = 26f
@@ -118,7 +134,9 @@ internal fun applyPlayerAppearance(playerView: PlayerView, title: String) {
             isFocusable = false
         }, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
             Gravity.TOP or Gravity.START).apply {
-            setMargins(context.playerDp(48), context.playerDp(32), context.playerDp(48), 0)
+            setMargins(context.playerDp(48), context.playerDp(32),
+                context.playerDp(if (options.playerClock || options.playerEndTime) 264 else 48), 0)
         })
+        if (options.playerClock || options.playerEndTime) attachPlayerClock(playerView, controls, options)
     }
 }

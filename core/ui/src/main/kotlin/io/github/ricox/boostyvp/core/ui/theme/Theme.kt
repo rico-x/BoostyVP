@@ -4,6 +4,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.LocalContentColor
@@ -14,6 +15,7 @@ import androidx.tv.material3.darkColorScheme
 import io.github.ricox.boostyvp.core.ui.R
 import io.github.ricox.boostyvp.core.ui.appearance.ProvideCardSize
 import io.github.ricox.boostyvp.core.ui.appearance.ProvideInterfaceOptions
+import io.github.ricox.boostyvp.core.ui.appearance.LocalInterfaceOptions
 
 private val BoostyTypography = Typography().let {
     it.copy(
@@ -30,15 +32,21 @@ private val BoostyTypography = Typography().let {
 /** Shared resource colors also theme the native Media3 controls. */
 @Composable
 fun BoostyVPTheme(content: @Composable () -> Unit) {
+    ProvideInterfaceOptions { StyledContent(content) }
+}
+
+@Composable
+private fun StyledContent(content: @Composable () -> Unit) {
+    val options = LocalInterfaceOptions.current
     val scheme = darkColorScheme(
-        primary = colorResource(R.color.boostyvp_accent),
-        onPrimary = colorResource(R.color.boostyvp_on_accent),
-        secondary = colorResource(R.color.boostyvp_accent),
-        background = colorResource(R.color.boostyvp_background),
+        primary = Color(options.accent.argb),
+        onPrimary = Color(options.accent.onArgb),
+        secondary = Color(options.accent.argb),
+        background = Color(options.theme.background),
         onBackground = colorResource(R.color.boostyvp_text),
-        surface = colorResource(R.color.boostyvp_surface),
+        surface = Color(options.theme.surface),
         onSurface = colorResource(R.color.boostyvp_text),
-        surfaceVariant = colorResource(R.color.boostyvp_surface_raised),
+        surfaceVariant = Color(options.theme.raised),
         onSurfaceVariant = colorResource(R.color.boostyvp_text_secondary),
         border = colorResource(R.color.boostyvp_border),
         error = colorResource(R.color.boostyvp_error),
@@ -54,10 +62,8 @@ fun BoostyVPTheme(content: @Composable () -> Unit) {
             extraLarge = RoundedCornerShape(28.dp),
         ),
     ) {
-        ProvideInterfaceOptions {
-            ProvideCardSize {
-                CompositionLocalProvider(LocalContentColor provides scheme.onBackground, content = content)
-            }
+        ProvideCardSize {
+            CompositionLocalProvider(LocalContentColor provides scheme.onBackground, content = content)
         }
     }
 }

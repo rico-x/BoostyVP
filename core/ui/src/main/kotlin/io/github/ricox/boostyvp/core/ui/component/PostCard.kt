@@ -1,7 +1,12 @@
 package io.github.ricox.boostyvp.core.ui.component
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -19,8 +24,14 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -30,9 +41,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.tv.material3.Border
-import androidx.tv.material3.Card
-import androidx.tv.material3.CardDefaults
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -40,6 +48,9 @@ import coil.compose.AsyncImage
 import io.github.ricox.boostyvp.core.model.Post
 import io.github.ricox.boostyvp.core.ui.appearance.LocalCardSize
 import io.github.ricox.boostyvp.core.ui.appearance.LocalInterfaceOptions
+import io.github.ricox.boostyvp.core.ui.appearance.CardStyle
+import io.github.ricox.boostyvp.core.ui.appearance.FocusColor
+import androidx.compose.ui.semantics.Role
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -54,21 +65,24 @@ fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier, inA
     val metadataStyle = MaterialTheme.typography.bodySmall.copy(
         fontSize = textSize.metadataSp.sp, lineHeight = (textSize.metadataSp + 4).sp)
     val shape = RoundedCornerShape(8.dp)
+    var focused by remember { mutableStateOf(false) }
+    val zoom by animateFloatAsState(if (focused && options.focusZoom) 1.02f else 1f,
+        animationSpec = if (options.animateFocus) tween(120) else snap(), label = "cardFocus")
+    val light = options.cardStyle == CardStyle.Light
+    val frame = if (options.focusColor == FocusColor.Accent) colors.primary else colors.onSurface
     val date = remember(post.publishedAt) {
         if (post.publishedAt > 0) SimpleDateFormat("d MMM", Locale.forLanguageTag("ru"))
             .format(Date(post.publishedAt * 1000L)) else ""
     }
-    Card(
-        onClick = onClick, modifier = modifier.width(size.widthDp.dp),
-        shape = CardDefaults.shape(shape),
-        colors = CardDefaults.colors(containerColor = colors.surface, contentColor = colors.onSurface,
-            focusedContainerColor = colors.surfaceVariant, focusedContentColor = colors.onSurface),
-        border = CardDefaults.border(
-            border = Border(BorderStroke(1.dp, colors.border.copy(alpha = 0.4f)), shape = shape),
-            focusedBorder = Border(BorderStroke(3.dp, colors.onSurface), inset = 3.dp, shape = shape),
-        ),
-        scale = CardDefaults.scale(focusedScale = 1.02f, pressedScale = 1f),
-    ) {
+    // Own the focus transition so "no animation" really snaps instead of retaining
+    // the TV Card's internal scale animation. Keep one stable clickable focus node.
+    Column(modifier.width(size.widthDp.dp).onFocusChanged { focused = it.isFocused }
+        .scale(zoom).clip(shape)
+        .background(if (light) Color.Transparent else if (focused) colors.surfaceVariant else colors.surface)
+        .border(if (focused) options.focusWidth.dp else 1.dp,
+            if (focused) frame else if (light) Color.Transparent else colors.border.copy(alpha = 0.4f), shape)
+        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null,
+            role = Role.Button, onClick = onClick)) {
         Column {
             Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)
                 .background(Brush.linearGradient(listOf(colors.surfaceVariant, colors.background)))) {
@@ -117,6 +131,7 @@ fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier, inA
             }
         }
     }
+    if (focused && options.fullTitle) FocusedTitle(post.title.ifBlank { "Без названия" })
 }
 
 @Composable
