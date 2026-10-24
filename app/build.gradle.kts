@@ -1,5 +1,5 @@
-import java.io.StringReader
-import java.util.Properties
+import java.time.LocalDate
+import java.time.ZoneId
 
 plugins {
     alias(libs.plugins.android.application)
@@ -9,9 +9,22 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
-val releaseVersion = Properties().apply {
-    load(StringReader(providers.fileContents(rootProject.layout.projectDirectory.file("version.properties")).asText.get()))
+/** Today's unreleased build, "YYYY.MM.DD.0"; re-evaluated on every build, so a cached configuration never keeps yesterday. */
+abstract class TodayBuildVersion : ValueSource<String, ValueSourceParameters.None> {
+    override fun obtain(): String = LocalDate.now(ZoneId.of("Europe/Moscow"))
+        .let { "%04d.%02d.%02d.0".format(it.year, it.monthValue, it.dayOfMonth) }
 }
+
+// The release date and the number of the release that day, e.g. 2026.10.24.1; see docs/RELEASING.md.
+// The release workflow passes -Pboostyvp.version; Android sees YYMMDDNN, so later releases install over earlier ones.
+val appVersion: String = providers.gradleProperty("boostyvp.version")
+    .orElse(providers.environmentVariable("BOOSTYVP_VERSION"))
+    .orElse(providers.of(TodayBuildVersion::class) {})
+    .get()
+val appVersionCode: Int = Regex("""(20\d{2})\.(0[1-9]|1[0-2])\.(0[1-9]|[12]\d|3[01])\.(0|[1-9]\d?)""")
+    .matchEntire(appVersion)?.destructured
+    ?.let { (year, month, day, number) -> year.toInt() % 100 * 1_000_000 + month.toInt() * 10_000 + day.toInt() * 100 + number.toInt() }
+    ?: error("boostyvp.version must look like YYYY.MM.DD.N: $appVersion")
 
 val prepareLegalAssets by tasks.registering(Sync::class) {
     from(listOf(rootProject.file("LICENSE.md"), rootProject.file("NOTICE.md"), rootProject.file("DISCLAIMER.md"),
@@ -32,8 +45,8 @@ android {
         applicationId = "io.github.ricox.boostyvp"
         minSdk = 23
         targetSdk = 35
-        versionCode = releaseVersion.getProperty("versionCode").toInt()
-        versionName = releaseVersion.getProperty("versionName")
+        versionCode = appVersionCode
+        versionName = appVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

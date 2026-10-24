@@ -14,4 +14,4 @@
 | ZXing | [zxing/zxing](https://github.com/zxing/zxing): Apache-2.0 |
 | JUnit, MockK, Turbine (тесты) | [JUnit4](https://github.com/junit-team/junit4): EPL-1.0; [MockK](https://github.com/mockk/mockk), [Turbine](https://github.com/cashapp/turbine): Apache-2.0 |
 
-SmartTube — ориентир интерфейса, не источник скопированного кода/графики. Логотипы и контент сервисов не становятся MIT-материалами. Старые скриншоты `docs/screenshots/` унаследованы из upstream; новая страница не выдаёт их за текущий интерфейс.
+SmartTube — ориентир интерфейса, не источник скопированного кода/графики. Логотипы и контент сервисов не становятся MIT-материалами. Скриншоты `docs/screenshots/` сняты на ТВ с текущим BoostyVP и реальными подписками владельца; обложки, названия и изображения публикаций принадлежат их авторам и не становятся MIT-материалами.

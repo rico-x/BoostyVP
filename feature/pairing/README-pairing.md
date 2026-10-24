@@ -1,6 +1,6 @@
 # Signing in
 
-The TV has three routes:
+The TV has two routes:
 
 - **Войти на этом ТВ** — native phone number and six-digit code fields. The main
   button requests the code, then confirms it. Focus opens the TV keyboard;
@@ -8,7 +8,6 @@ The TV has three routes:
 - **С телефона или компьютера** — browser pairing at `http://<TV-IP>:8765/link`.
   Instructions adapt to Android, iPhone/iPad or a computer. A desktop can save
   the ready-made bookmark by dragging it onto its bookmarks bar.
-- **Вставить токен** — manual session import.
 
 ## Native phone login
 

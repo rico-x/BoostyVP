@@ -3,9 +3,17 @@ on:
   workflow_dispatch:
     inputs:
       prerelease:
-        description: Mark this development version as a pre-release
+        description: Mark the release as a pre-release
         type: boolean
         default: true
+      dry_run:
+        description: Build, sign and scan only; publish nothing
+        type: boolean
+        default: false
+      virustotal_max_malicious:
+        description: VirusTotal detections to accept; raise only for a false positive checked by hand
+        type: number
+        default: 0
 permissions:
   contents: read
 concurrency:
@@ -20,13 +28,33 @@ jobs:
         env:
           RELEASE_REF: ${{ github.ref }}
         run: test "$RELEASE_REF" = refs/heads/main
-  verify:
+  version:
     needs: guard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.next.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Today's date and the next release number that day
+        id: next
+        run: |
+          version="$(node build-support/release-tools.mjs next-version)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Release version: $version" >> "$GITHUB_STEP_SUMMARY"
+  verify:
+    needs: version
     uses: ./.github/workflows/verify-build.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
     permissions:
       contents: read
   sign:
-    needs: verify
+    needs: [version, verify]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: release
@@ -34,6 +62,8 @@ jobs:
       contents: read
       id-token: write
       attestations: write
+    env:
+      BOOSTYVP_VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -67,6 +97,7 @@ jobs:
         if: always()
         run: rm -f -- "$RUNNER_TEMP/boostyvp-release.p12"
       - name: Attest signed artifacts and checksums
+        if: ${{ !inputs.dry_run }}
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-path: 'dist/*'
@@ -76,12 +107,16 @@ jobs:
           path: dist/*
           if-no-files-found: error
           retention-days: 14
-  publish:
-    needs: sign
+  scan:
+    # Nothing is published unless both scanners pass the exact signed files.
+    needs: [version, sign]
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 40
+    environment: release
     permissions:
-      contents: write
+      contents: read
+    env:
+      BOOSTYVP_VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -90,6 +125,53 @@ jobs:
         with:
           name: signed-release
           path: dist
+      - name: These are the signed release files
+        run: node build-support/release-tools.mjs verify-assets dist
+      - name: ClamAV
+        run: |
+          mkdir -p scan-report
+          bash build-support/clamav-scan.sh dist scan-report/clamav.txt
+      - name: VirusTotal
+        env:
+          VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
+          VIRUSTOTAL_MAX_MALICIOUS: ${{ inputs.virustotal_max_malicious }}
+        run: node build-support/virustotal-scan.mjs dist scan-report/virustotal
+      - name: Scan summary
+        if: always()
+        run: |
+          {
+            echo '## Проверка на вирусы'
+            if [ -f scan-report/virustotal.md ]; then cat scan-report/virustotal.md; fi
+            if [ -f scan-report/clamav.txt ]; then grep -E '^ClamAV [0-9]|Infected files' scan-report/clamav.txt | sed 's/^/    /'; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: scan-report
+          path: scan-report/*
+          if-no-files-found: warn
+          retention-days: 90
+  publish:
+    needs: [version, scan]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      BOOSTYVP_VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: signed-release
+          path: dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: scan-report
+          path: scan-report
       - name: Verify integrity and publish a complete release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -97,16 +179,31 @@ jobs:
           PRERELEASE: ${{ inputs.prerelease }}
         run: |
           node build-support/release-tools.mjs verify-assets dist
-          version="$(node build-support/release-tools.mjs version)"
-          tag="v$version"
-          notes="release-notes/$tag.md"
-          test -s "$notes"
+          tag="v$BOOSTYVP_VERSION"
+          test -s release-notes/next.md
+          test -s scan-report/virustotal.md
+          clamav="$(grep -E '^ClamAV [0-9]' scan-report/clamav.txt | head -1)"
+          {
+            cat release-notes/next.md
+            printf '\n## Проверка на вирусы / Virus scan\n\n'
+            cat scan-report/virustotal.md
+            printf '\nClamAV: угроз не найдено / no threats found (%s).\n' "$clamav"
+          } > "$RUNNER_TEMP/notes.md"
           if gh release view "$tag" >/dev/null 2>&1; then
-            echo '::error::Release exists. Never overwrite published binaries; inspect an unfinished draft or bump the version.'
+            echo '::error::Release exists. Never overwrite published binaries; inspect an unfinished draft first.'
             exit 1
           fi
           args=()
           if [[ "$PRERELEASE" == true ]]; then args+=(--prerelease); fi
-          gh release create "$tag" dist/*.apk dist/SHA256SUMS dist/release-manifest.json --target "$GITHUB_SHA" --title "BoostyVP $version" --notes-file "$notes" --draft "${args[@]}"
+          gh release create "$tag" dist/*.apk dist/SHA256SUMS dist/release-manifest.json --target "$GITHUB_SHA" \
+            --title "BoostyVP $BOOSTYVP_VERSION" --notes-file "$RUNNER_TEMP/notes.md" --draft "${args[@]}"
           gh release edit "$tag" --draft=false
-          printf 'Published [BoostyVP %s](https://github.com/%s/releases/tag/%s)\n' "$version" "$GH_REPO" "$tag" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Published [BoostyVP %s](https://github.com/%s/releases/tag/%s)\n' "$BOOSTYVP_VERSION" "$GH_REPO" "$tag" >> "$GITHUB_STEP_SUMMARY"
+  pages:
+    # Releases made with GITHUB_TOKEN do not trigger other workflows, so the site is rebuilt here.
+    needs: publish
+    uses: ./.github/workflows/pages.yml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write

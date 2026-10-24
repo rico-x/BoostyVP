@@ -6,6 +6,12 @@ on:
     branches: [main]
   workflow_dispatch:
   workflow_call:
+    inputs:
+      version:
+        description: Release version YYYY.MM.DD.N; empty builds today's unreleased .0
+        type: string
+        required: false
+        default: ''
 permissions:
   contents: read
 concurrency:
@@ -20,6 +26,16 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - name: Gradle wrapper is the published one
+        uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - name: Version of this build
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          version="${REQUESTED_VERSION:-$(node build-support/release-tools.mjs version)}"
+          BOOSTYVP_VERSION="$version" node build-support/release-tools.mjs version >/dev/null
+          echo "BOOSTYVP_VERSION=$version" >> "$GITHUB_ENV"
+          echo "Version: $version" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           distribution: temurin
@@ -31,16 +47,18 @@ jobs:
       - name: Verify browser handoff and release tooling
         run: |
           node build-support/test-pairing-brand.mjs
-          node --test build-support/release-tools.test.mjs
-          bash -n build-support/sign-release.sh
-          shellcheck build-support/sign-release.sh
-          node build-support/build-pages.mjs
+          node --test build-support/release-tools.test.mjs build-support/virustotal-scan.test.mjs build-support/build-pages.test.mjs
+          for script in build-support/sign-release.sh build-support/clamav-scan.sh; do bash -n "$script"; done
+          shellcheck build-support/sign-release.sh build-support/clamav-scan.sh
+          node build-support/build-pages.mjs build
       - name: Unit tests and all instrumentation APKs
         run: ./gradlew testDebugUnitTest :core:domain:test :app:assembleDebug assembleDebugAndroidTest --no-daemon --max-workers=2 --no-watch-fs --console=plain
       - name: Build and inspect architecture variants
         run: |
           ./gradlew :app:assembleRelease -PsplitApks=true --no-daemon --max-workers=2 --no-watch-fs --console=plain
           node build-support/release-tools.mjs check-apks app/build/outputs/apk/release
+      - name: Scan the APKs with ClamAV
+        run: bash build-support/clamav-scan.sh app/build/outputs/apk
       - name: Upload unsigned APKs for separate signing
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:

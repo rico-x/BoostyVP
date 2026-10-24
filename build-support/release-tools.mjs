@@ -10,15 +10,45 @@ import { fileURLToPath } from 'node:url';
 export const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 export const config = JSON.parse(readFileSync(join(root, 'build-support/release-config.json'), 'utf8'));
 
-export function parseVersion(text) {
-  const values = Object.fromEntries(text.trim().split(/\r?\n/).filter(l => l && !l.startsWith('#')).map(l => l.split('=')));
-  assert.match(values.versionName ?? '', /^0\.(0|[1-9]\d*)\.(0|[1-9]\d*)$|^[1-9]\d*\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/);
-  assert.match(values.versionCode ?? '', /^[1-9]\d*$/);
-  const code = Number(values.versionCode);
-  assert.ok(Number.isSafeInteger(code) && code <= 2_100_000_000);
-  return { name: values.versionName, code };
+/**
+ * Versions are the release date and the number of the release that day:
+ * "2026.10.24.1". Number 0 marks a build that is not a release. The Android
+ * versionCode is YYMMDDNN, so every later release installs over an earlier one.
+ */
+export const RELEASE_TIME_ZONE = 'Europe/Moscow';
+const VERSION_PATTERN = /^(20\d{2})\.(0[1-9]|1[0-2])\.(0[1-9]|[12]\d|3[01])\.(0|[1-9]\d?)$/;
+
+export function parseVersion(name) {
+  const match = VERSION_PATTERN.exec(name ?? '');
+  assert.ok(match, `Version must look like YYYY.MM.DD.N: ${name}`);
+  const [year, month, day, number] = match.slice(1).map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  assert.equal(date.getUTCDate(), day, `No such date: ${name}`);
+  const code = (year % 100) * 1_000_000 + month * 10_000 + day * 100 + number;
+  return { name, code, date: name.slice(0, 10), number };
 }
-export const version = () => parseVersion(readFileSync(join(root, 'version.properties'), 'utf8'));
+
+/** The calendar day of a release in the project's time zone, as "YYYY.MM.DD". */
+export function releaseDate(now = new Date()) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+    timeZone: RELEASE_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(now).map(p => [p.type, p.value]));
+  return `${parts.year}.${parts.month}.${parts.day}`;
+}
+
+/** The next release today: one more than the highest `v<date>.N` tag, starting at 1. */
+export function nextVersion(tags, now = new Date()) {
+  const date = releaseDate(now);
+  const prefix = `v${date}.`;
+  const taken = tags.map(t => t.trim()).filter(t => t.startsWith(prefix))
+    .map(t => t.slice(prefix.length)).filter(n => /^[1-9]\d?$/.test(n)).map(Number);
+  const number = Math.max(0, ...taken) + 1;
+  assert.ok(number <= 99, `Too many releases on ${date}`);
+  return parseVersion(`${date}.${number}`);
+}
+
+/** BOOSTYVP_VERSION when a release is being built, otherwise today's unreleased ".0" build. */
+export const version = () => parseVersion(process.env.BOOSTYVP_VERSION || `${releaseDate()}.0`);
 
 export function parseOutputs(metadata, expected = version()) {
   assert.equal(metadata.applicationId, config.applicationId);
@@ -111,6 +141,10 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const [command, directory] = process.argv.slice(2);
   try {
     if (command === 'version') console.log(version().name);
+    else if (command === 'next-version') {
+      const tags = run('git', ['tag', '--list', 'v*']).split('\n').filter(Boolean);
+      console.log(nextVersion(tags).name);
+    }
     else if (command === 'outputs' || command === 'check-apks') {
       const outputs = parseOutputs(JSON.parse(readFileSync(join(directory, 'output-metadata.json'), 'utf8')));
       for (const o of outputs) {
@@ -119,7 +153,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       }
     } else if (command === 'manifest') makeManifest(directory);
     else if (command === 'verify-assets') verifyAssets(directory);
-    else throw new Error('Usage: release-tools.mjs version|outputs|check-apks|manifest|verify-assets [directory]');
+    else throw new Error('Usage: release-tools.mjs version|next-version|outputs|check-apks|manifest|verify-assets [directory]');
   } catch (error) {
     // Only validation errors reach this CLI, never keystore contents/passwords.
     console.error(`Release validation failed: ${error.message}`);
