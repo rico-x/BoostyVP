@@ -2,31 +2,64 @@ name: Deploy project Pages
 on:
   push:
     branches: [main]
-    paths: ['site/**', 'build-support/build-pages.mjs', 'version.properties', 'docs/**', 'README.md', 'LICENSE.md', 'LICENSES/**', '.github/workflows/pages.yml']
+    paths: ['site/**', 'build-support/build-pages.mjs', 'build-support/release-tools.mjs', 'docs/**', 'README.md', 'LICENSE.md', 'LICENSES/**', '.github/workflows/pages.yml']
+  release:
+    # Releases published or removed by hand; the release workflow calls this one itself.
+    types: [published, edited, deleted, unpublished]
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
-concurrency:
-  group: pages
-  cancel-in-progress: false
 jobs:
-  build:
+  redeploy-from-main:
+    # Release events run on the tag, but only main may deploy Pages.
+    if: github.event_name == 'release'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run pages.yml --ref main
+  build:
+    if: github.event_name != 'release'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
-      - run: node build-support/build-pages.mjs
+      - name: Newest published release, pre-releases included
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p build/release
+          gh api "repos/$GH_REPO/releases?per_page=30" > build/release/releases.json
+          tag="$(node build-support/build-pages.mjs newest-tag build/release/releases.json)"
+          if [ -n "$tag" ]; then
+            gh release download "$tag" --pattern SHA256SUMS --dir build/release
+            echo "Site for $tag" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'No published release yet' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - run: node build-support/build-pages.mjs build build/release
+      - name: Every download link answers before the site goes live
+        run: node build-support/build-pages.mjs check-links
       - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         with:
           path: build/pages
   deploy:
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name != 'release' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     permissions:
       pages: write
       id-token: write

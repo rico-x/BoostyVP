@@ -14,7 +14,7 @@ dialog and asynchronous loading replaces its content with the video player.
   freezes its position and remote play resumes playback. No account is needed.
 
 The release package is `io.github.ricox.boostyvp`, labeled **BoostyVP**,
-current version `0.0.3` (Android versionCode 7). It retains its persistent signing key.
+versioned by release date (`YYYY.MM.DD.N`, see [RELEASING.md](RELEASING.md)). It retains its persistent signing key.
 It cannot reuse another package's encrypted account storage. Sign in normally
 in the new app; uninstalling a previous client is a separate, explicit action.
 Updates within BoostyVP retain the package/signing identity and preserve login.

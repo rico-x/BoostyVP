@@ -20,12 +20,4 @@ key.properties
 .env
 .env.*
 !.env.example
-.venv/
-__pycache__/
-.pytest_cache/
-*.egg-info/
-iptv/data/
-iptv/.env
-/iptv/
-/tools/
 /Screen_recording_*.mp4
