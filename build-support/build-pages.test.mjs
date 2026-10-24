@@ -28,6 +28,19 @@ test('the newest published release wins, pre-releases included, drafts ignored',
   assert.equal(newestRelease([release('2026.10.24.3', null, { draft: true })]), null);
 });
 
+test('the SLSA provenance file is linked when the release has one', () => {
+  const signed = release('2026.10.24.2', '2026-10-24T12:00:00Z');
+  signed.assets.push({ name: 'boostyvp-v2026.10.24.2.intoto.jsonl',
+    browser_download_url: `${repo}/releases/download/v2026.10.24.2/boostyvp-v2026.10.24.2.intoto.jsonl` });
+  const html = render(template, newestRelease([signed]), parseChecksums(sums('2026.10.24.2')), []);
+  assert.ok(linksToCheck(html).some(l => l.endsWith('/v2026.10.24.2/boostyvp-v2026.10.24.2.intoto.jsonl')));
+  const unsigned = render(template, newestRelease([release('2026.10.24.2', '2026-10-24T12:00:00Z')]), parseChecksums(sums('2026.10.24.2')), []);
+  assert.ok(!unsigned.includes('intoto'));
+  const elsewhere = release('2026.10.24.2', '2026-10-24T12:00:00Z');
+  elsewhere.assets.push({ name: 'boostyvp-v2026.10.24.2.intoto.jsonl', browser_download_url: 'https://example.com/p.intoto.jsonl' });
+  assert.throws(() => newestRelease([elsewhere]), /provenance URL/);
+});
+
 test('a release without every file is never advertised', () => {
   const partial = release('2026.10.24.1', '2026-10-24T09:00:00Z');
   partial.assets = partial.assets.filter(a => !a.name.endsWith('x86.apk'));

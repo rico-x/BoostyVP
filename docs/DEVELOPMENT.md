@@ -25,6 +25,34 @@
 - ClamAV проверяет APK в каждом прогоне CI; перед выпуском — ещё и VirusTotal.
 - [Проверки плеера и причины исправления управления](player-input.md).
 
+## Фаззинг
+
+Разбор недоверенных данных проверяется фаззером [Jazzer](https://github.com/CodeIntelligenceTesting/jazzer):
+запросы к серверу сопряжения, поля формы и значения сессии (`core/auth`,
+`PairingInputFuzzTest`), ответы API Boosty и блоки контента (`core/network`,
+`BoostyResponseFuzzTest`). Проверки лежат рядом, в `*Checks.kt`: допустимые
+отказы (например, `IllegalArgumentException` для плохой сессии) отделены от
+находок — любого другого исключения или нарушенного условия.
+
+Обычный прогон модульных тестов воспроизводит сохранённые входы из
+`src/test/resources/**/*FuzzTestInputs`. Фаззить одну цель (2 минуты):
+
+```bash
+JAZZER_FUZZ=1 ./gradlew :core:auth:testDebugUnitTest --tests 'io.github.ricox.boostyvp.core.auth.pairing.PairingInputFuzzTest.httpRequest'
+```
+
+Найденный падающий вход Jazzer кладёт в ту же папку входов — после исправления
+он остаётся регрессионным тестом. Workflow «Fuzzing» фаззит все цели еженедельно
+и в PR, меняющих парсеры. В тестах `core/network` `android.util.Log` заменён
+пустой заглушкой: мапперы пишут в журнал необычный ввод, а на JVM настоящий
+`Log` бросал бы исключение и давал ложные находки.
+
+## OpenSSF
+
+Оценка практик — [OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/rico-x/BoostyVP)
+(workflow «OpenSSF Scorecard»). Готовые ответы для анкеты Best Practices и что
+мешает уровню passing — в [OPENSSF_BEST_PRACTICES.md](OPENSSF_BEST_PRACTICES.md).
+
 ## Изменения в main
 
 `main` защищён: изменения — только через pull request со squash-слиянием, после

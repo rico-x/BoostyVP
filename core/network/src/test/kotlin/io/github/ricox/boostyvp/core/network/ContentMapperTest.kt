@@ -83,4 +83,24 @@ class ContentMapperTest {
         assertEquals("p4", post.id)
         assertTrue(post.blocks.isEmpty())
     }
+
+    @Test
+    fun `a malformed size never fails the post`() {
+        // Found by fuzzing: JsonPrimitive.intOrNull throws StringIndexOutOfBounds
+        // on text such as "1 (a quote, then a digit) instead of returning null,
+        // which used to fail the whole page.
+        for (bad in listOf("\\\"1", "\\\"0", "\\\"", "-", "--1", "0x10", "1.5")) {
+            val raw = """{"id":"p5","data":[{"type":"image","url":"u","width":"$bad","height":"$bad"},
+                {"type":"ok_video","id":"v","width":"$bad","playerUrls":[]}]}"""
+            val post = json.decodeFromString<PostDto>(raw).toDomain(json)
+            val image = post.blocks.filterIsInstance<ContentBlock.Image>().single()
+            assertEquals(bad, null, image.width)
+            assertEquals(bad, null, image.height)
+        }
+        val numbers = json.decodeFromString<PostDto>(
+            """{"id":"p6","data":[{"type":"image","url":"u","width":640,"height":"360"}]}""").toDomain(json)
+        val image = numbers.blocks.single() as ContentBlock.Image
+        assertEquals(640, image.width)
+        assertEquals(360, image.height)
+    }
 }

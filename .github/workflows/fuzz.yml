@@ -1,0 +1,72 @@
+name: Fuzzing
+# Every unit test run already replays the saved fuzz inputs. This workflow
+# fuzzes each Jazzer target for two minutes: weekly, by hand, and on pull
+# requests that touch the parsers or the fuzz tests.
+on:
+  schedule:
+    - cron: '27 3 * * 6'
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'core/auth/src/main/**'
+      - 'core/network/src/main/**'
+      - 'core/*/src/test/**/*Fuzz*'
+      - 'core/*/src/test/resources/**'
+      - '.github/workflows/fuzz.yml'
+permissions:
+  contents: read
+concurrency:
+  group: fuzz-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  fuzz:
+    name: Fuzz ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: pairing HTTP request
+            module: core:auth
+            test: io.github.ricox.boostyvp.core.auth.pairing.PairingInputFuzzTest.httpRequest
+          - name: pairing form field
+            module: core:auth
+            test: io.github.ricox.boostyvp.core.auth.pairing.PairingInputFuzzTest.formField
+          - name: pairing session
+            module: core:auth
+            test: io.github.ricox.boostyvp.core.auth.pairing.PairingInputFuzzTest.session
+          - name: Boosty responses
+            module: core:network
+            test: io.github.ricox.boostyvp.core.network.BoostyResponseFuzzTest.response
+          - name: content blocks
+            module: core:network
+            test: io.github.ricox.boostyvp.core.network.BoostyResponseFuzzTest.contentBlock
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+      - name: Install SDK
+        run: bash build-support/install-sdk.sh 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Fuzz for two minutes
+        env:
+          JAZZER_FUZZ: '1'
+          MODULE: ${{ matrix.module }}
+          FUZZ_TEST: ${{ matrix.test }}
+        run: ./gradlew ":$MODULE:testDebugUnitTest" --tests "$FUZZ_TEST" --no-daemon --max-workers=2 --no-watch-fs --console=plain
+      - name: Keep the input that failed
+        # Jazzer saves a crashing input next to the seeds; committed there, it becomes a regression test.
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: fuzz-finding-${{ strategy.job-index }}
+          path: core/*/src/test/resources/**/*FuzzTestInputs/**
+          if-no-files-found: warn
+          retention-days: 30

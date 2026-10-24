@@ -49,6 +49,8 @@ ARM64 (`arm64-v8a`), `x86`, `x86_64` и `universal`. Обычная сборка
   проверяются (HTTP 200) до выкладки; без выпуска сайт не показывает ссылок.
 - **Dependency review** (PR), **Dependency graph** (Gradle-зависимости для Dependabot)
   и **OpenSSF Scorecard** (оценка практик безопасности репозитория).
+- **Fuzzing**: Jazzer-фаззинг парсеров еженедельно и в PR, меняющих их; см.
+  [DEVELOPMENT.md](DEVELOPMENT.md#фаззинг).
 - **CodeQL analysis**: Kotlin/Java и JavaScript, push/PR/manual и еженедельно.
   Найденные проблемы требуют отдельного разбора, а не автоматически считаются исправленными.
 
@@ -91,7 +93,10 @@ Linux: `sha256sum -c SHA256SUMS`; macOS: `shasum -a 256 -c SHA256SUMS`.
 
 Подпись: `apksigner verify --verbose --print-certs <file.apk>` из официального
 Android SDK. Сверьте SHA-256 сертификата с закреплённым выше.
-Происхождение: `gh attestation verify <file.apk> --repo rico-x/BoostyVP`.
+Происхождение: `gh attestation verify <file.apk> --repo rico-x/BoostyVP`. Тот же
+бандл подписи происхождения SLSA лежит в выпуске как `boostyvp-v<версия>.intoto.jsonl`:
+`gh attestation verify <file.apk> --repo rico-x/BoostyVP --bundle boostyvp-v<версия>.intoto.jsonl`.
+Workflow выпуска перед публикацией сверяет с ним каждый APK.
 Attestation связывает бинарник с workflow/коммитом, но не гарантирует отсутствие ошибок.
 
 ## Чек-лист сопровождающего
