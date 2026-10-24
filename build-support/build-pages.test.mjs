@@ -43,7 +43,9 @@ test('every download link is the release\'s own asset, with its VirusTotal repor
   assert.equal(links.filter(l => l.endsWith('.apk')).length, 5);
   assert.ok(links.every(l => l.includes('/v2026.10.24.2/') || l.endsWith('/tag/v2026.10.24.2')));
   assert.ok(html.includes('PRE-RELEASE 2026.10.24.2'));
-  assert.equal([...html.matchAll(/www\.virustotal\.com\/gui\/file\/[a-f0-9]{64}/g)].length, 5);
+  const reports = [...html.matchAll(/href="([^"]+)"/g)].map(m => m[1]).filter(h => h.includes('virustotal'));
+  assert.equal(reports.length, 5);
+  assert.ok(reports.every(h => /^https:\/\/www\.virustotal\.com\/gui\/file\/[a-f0-9]{64}$/.test(h)), `${reports}`);
   assert.ok(html.includes('src="screenshots/home.webp"'));
   assert.ok(!html.includes('0.0.3'));
 });
