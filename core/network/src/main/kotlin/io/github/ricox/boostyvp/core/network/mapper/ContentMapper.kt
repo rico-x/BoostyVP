@@ -10,7 +10,6 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 private const val TAG = "ContentMapper"
@@ -43,8 +42,11 @@ internal fun decodeTextContent(json: Json, content: JsonElement?): String {
     }
 }
 
+// Not JsonPrimitive.intOrNull: on text such as "1 (a quote, then a digit) it
+// throws instead of returning null (found by fuzzing), failing the whole page.
+// The content of a JSON number and of a numeric string parse the same way.
 private fun JsonElement?.asIntOrNull(): Int? =
-    (this as? JsonPrimitive)?.let { it.intOrNull ?: it.contentOrNull?.toIntOrNull() }
+    (this as? JsonPrimitive)?.contentOrNull?.toIntOrNull()
 
 /**
  * Quality ranks for progressive MP4 renditions. Higher is better.

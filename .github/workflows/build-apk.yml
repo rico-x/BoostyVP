@@ -97,10 +97,27 @@ jobs:
         if: always()
         run: rm -f -- "$RUNNER_TEMP/boostyvp-release.p12"
       - name: Attest signed artifacts and checksums
+        id: attest
         if: ${{ !inputs.dry_run }}
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-path: 'dist/*'
+      - name: Keep the SLSA provenance bundle for the release assets
+        if: ${{ !inputs.dry_run }}
+        env:
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          mkdir -p provenance
+          file="provenance/boostyvp-v$BOOSTYVP_VERSION.intoto.jsonl"
+          jq -c . "$BUNDLE" > "$file"
+          test "$(wc -l < "$file")" -eq 1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: ${{ !inputs.dry_run }}
+        with:
+          name: release-provenance
+          path: provenance/*
+          if-no-files-found: error
+          retention-days: 14
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: signed-release
@@ -172,6 +189,10 @@ jobs:
         with:
           name: scan-report
           path: scan-report
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: release-provenance
+          path: provenance
       - name: Verify integrity and publish a complete release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -180,6 +201,10 @@ jobs:
         run: |
           node build-support/release-tools.mjs verify-assets dist
           tag="v$BOOSTYVP_VERSION"
+          provenance="provenance/boostyvp-v$BOOSTYVP_VERSION.intoto.jsonl"
+          for apk in dist/*.apk; do
+            gh attestation verify "$apk" --repo "$GH_REPO" --bundle "$provenance" >/dev/null
+          done
           test -s release-notes/next.md
           test -s scan-report/virustotal.md
           clamav="$(grep -E '^ClamAV [0-9]' scan-report/clamav.txt | head -1)"
@@ -195,7 +220,7 @@ jobs:
           fi
           args=()
           if [[ "$PRERELEASE" == true ]]; then args+=(--prerelease); fi
-          gh release create "$tag" dist/*.apk dist/SHA256SUMS dist/release-manifest.json --target "$GITHUB_SHA" \
+          gh release create "$tag" dist/*.apk dist/SHA256SUMS dist/release-manifest.json "$provenance" --target "$GITHUB_SHA" \
             --title "BoostyVP $BOOSTYVP_VERSION" --notes-file "$RUNNER_TEMP/notes.md" --draft "${args[@]}"
           gh release edit "$tag" --draft=false
           printf 'Published [BoostyVP %s](https://github.com/%s/releases/tag/%s)\n' "$BOOSTYVP_VERSION" "$GH_REPO" "$tag" >> "$GITHUB_STEP_SUMMARY"

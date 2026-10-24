@@ -43,7 +43,11 @@ export function newestRelease(releases) {
     assert.ok(assets[name], `Release ${release.tag_name} is missing ${name}`);
     assert.equal(assets[name], `${repo}/releases/download/${release.tag_name}/${name}`, `Unexpected URL for ${name}`);
   }
-  return { tag: release.tag_name, version, prerelease: release.prerelease, publishedAt: release.published_at, assets };
+  // SLSA provenance, attached since the release workflow signs it; older releases have none.
+  const provenanceName = `boostyvp-v${version}.intoto.jsonl`;
+  const provenance = assets[provenanceName] ?? null;
+  if (provenance) assert.equal(provenance, `${repo}/releases/download/${release.tag_name}/${provenanceName}`, 'Unexpected provenance URL');
+  return { tag: release.tag_name, version, prerelease: release.prerelease, publishedAt: release.published_at, assets, provenance };
 }
 
 /** SHA-256 per file from a release's SHA256SUMS. */
@@ -80,6 +84,7 @@ function downloadsHtml(release, checksums) {
     `<p class="note">Один пакет и прежний ключ подписи. Для обновления не удаляйте приложение. ` +
     `Каждый файл перед публикацией проверен ClamAV и VirusTotal.<br>` +
     `<a href="${release.assets.SHA256SUMS}">Контрольные суммы</a> · <a href="${release.assets['release-manifest.json']}">Манифест сборки</a> · ` +
+    (release.provenance ? `<a href="${release.provenance}">Подпись происхождения (SLSA)</a> · ` : '') +
     `<a href="${repo}/blob/main/docs/RELEASING.md">Как проверить подпись</a></p>`;
 }
 

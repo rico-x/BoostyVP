@@ -37,6 +37,9 @@ android {
 
     buildFeatures { buildConfig = true }
 
+    // Fuzz tests replay their saved inputs in every run; JAZZER_FUZZ=1 fuzzes (see docs/DEVELOPMENT.md).
+    testOptions { unitTests.all { it.useJUnitPlatform() } }
+
     buildTypes {
         debug {
             buildConfigField("String", "PAIRING_HOST", "\"$pairingHost\"")
@@ -75,6 +78,12 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
     testImplementation(libs.mockk)
+    // Fuzz tests (Jazzer) run on JUnit 5; the existing JUnit 4 tests run on its vintage engine.
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.jazzer.junit)
+    testRuntimeOnly(libs.junit.vintage.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
 }

@@ -145,29 +145,16 @@ internal class MiniHttpServer(
     private fun handle(client: Socket) {
         try {
             client.soTimeout = SOCKET_TIMEOUT_MILLIS
-            val input = client.getInputStream()
-
-            val head = readHead(input) ?: return
-            val lines = head.split("\r\n")
-            val requestLine = lines.firstOrNull()?.split(' ') ?: return
-            if (requestLine.size < 2) return
-
-            val method = requestLine[0].uppercase()
-            val path = requestLine[1].substringBefore('?')
-
-            val lengthHeader = lines
-                .firstOrNull { it.startsWith("content-length:", ignoreCase = true) }
-                ?.substringAfter(':')
-                ?.trim()
-            val contentLength = if (lengthHeader == null) 0 else lengthHeader.toIntOrNull()
-            if (contentLength == null || contentLength !in 0..MAX_BODY_BYTES) {
-                write(client, HttpResponse.badRequest())
-                return
+            val request = when (val read = readRequest(client.getInputStream())) {
+                RequestRead.Incomplete -> return
+                RequestRead.BadLength -> {
+                    write(client, HttpResponse.badRequest())
+                    return
+                }
+                is RequestRead.Complete -> read.request
             }
 
-            val body = if (contentLength > 0) readBody(input, contentLength) else ""
-
-            val response = runCatching { onRequest(HttpRequest(method, path, body)) }
+            val response = runCatching { onRequest(request) }
                 .getOrElse {
                     Log.w(TAG, "Handler threw", it)
                     HttpResponse(500, "error")
@@ -180,40 +167,6 @@ internal class MiniHttpServer(
             clients.remove(client)
             runCatching { client.close() }
         }
-    }
-
-    /** Reads bytes up to the blank line that ends the request head. */
-    private fun readHead(input: InputStream): String? {
-        val buffer = ByteArrayOutputStream()
-        var matched = 0
-        while (buffer.size() < MAX_HEAD_BYTES) {
-            val byte = input.read()
-            if (byte == -1) return null
-            buffer.write(byte)
-            // Track the \r\n\r\n terminator without re-scanning the buffer.
-            matched = when {
-                byte == TERMINATOR[matched].code -> matched + 1
-                byte == TERMINATOR[0].code -> 1
-                else -> 0
-            }
-            if (matched == TERMINATOR.length) {
-                return String(buffer.toByteArray(), Charsets.UTF_8)
-            }
-        }
-        return null
-    }
-
-    private fun readBody(input: InputStream, length: Int): String {
-        val bytes = ByteArray(length)
-        var read = 0
-        while (read < length) {
-            // A single read() is not guaranteed to return everything; looping
-            // here is what makes a large pasted token arrive intact.
-            val count = input.read(bytes, read, length - read)
-            if (count == -1) throw EOFException("Incomplete HTTP body")
-            read += count
-        }
-        return String(bytes, 0, read, Charsets.UTF_8)
     }
 
     private fun write(client: Socket, response: HttpResponse) {
@@ -246,13 +199,84 @@ internal class MiniHttpServer(
 
     private companion object {
         const val TAG = "MiniHttpServer"
-        const val TERMINATOR = "\r\n\r\n"
         const val WORKER_THREADS = 2
         const val MAX_QUEUED_CONNECTIONS = 8
         const val SOCKET_TIMEOUT_MILLIS = 15_000
         /** stop() may run on the main thread (ViewModel.onCleared); the thread exits within milliseconds. */
         const val ACCEPT_EXIT_TIMEOUT_MILLIS = 500L
-        const val MAX_HEAD_BYTES = 16 * 1024
-        const val MAX_BODY_BYTES = 256 * 1024
     }
 }
+
+/** One request read from a connection, or why the handler is not called. */
+internal sealed interface RequestRead {
+    data class Complete(val request: HttpRequest) : RequestRead
+    /** Content-Length is not a number, negative or above the body limit: answered with 400. */
+    data object BadLength : RequestRead
+    /** No complete request head before the connection ended: dropped without an answer. */
+    data object Incomplete : RequestRead
+}
+
+/**
+ * Reads one HTTP/1.1 request -- a request line, headers and an optional
+ * Content-Length body. Everything a device on the LAN sends passes through
+ * here, so it touches nothing but [input] and is fuzzed on its own.
+ *
+ * @throws EOFException when the body ends before Content-Length bytes.
+ */
+internal fun readRequest(input: InputStream): RequestRead {
+    val head = readHead(input) ?: return RequestRead.Incomplete
+    val lines = head.split("\r\n")
+    val requestLine = lines.firstOrNull()?.split(' ') ?: return RequestRead.Incomplete
+    if (requestLine.size < 2) return RequestRead.Incomplete
+
+    val method = requestLine[0].uppercase()
+    val path = requestLine[1].substringBefore('?')
+
+    val lengthHeader = lines
+        .firstOrNull { it.startsWith("content-length:", ignoreCase = true) }
+        ?.substringAfter(':')
+        ?.trim()
+    val contentLength = if (lengthHeader == null) 0 else lengthHeader.toIntOrNull()
+    if (contentLength == null || contentLength !in 0..MAX_BODY_BYTES) return RequestRead.BadLength
+
+    val body = if (contentLength > 0) readBody(input, contentLength) else ""
+    return RequestRead.Complete(HttpRequest(method, path, body))
+}
+
+/** Reads bytes up to the blank line that ends the request head. */
+private fun readHead(input: InputStream): String? {
+    val buffer = ByteArrayOutputStream()
+    var matched = 0
+    while (buffer.size() < MAX_HEAD_BYTES) {
+        val byte = input.read()
+        if (byte == -1) return null
+        buffer.write(byte)
+        // Track the \r\n\r\n terminator without re-scanning the buffer.
+        matched = when {
+            byte == TERMINATOR[matched].code -> matched + 1
+            byte == TERMINATOR[0].code -> 1
+            else -> 0
+        }
+        if (matched == TERMINATOR.length) {
+            return String(buffer.toByteArray(), Charsets.UTF_8)
+        }
+    }
+    return null
+}
+
+private fun readBody(input: InputStream, length: Int): String {
+    val bytes = ByteArray(length)
+    var read = 0
+    while (read < length) {
+        // A single read() is not guaranteed to return everything; looping
+        // here is what makes a large pasted token arrive intact.
+        val count = input.read(bytes, read, length - read)
+        if (count == -1) throw EOFException("Incomplete HTTP body")
+        read += count
+    }
+    return String(bytes, 0, read, Charsets.UTF_8)
+}
+
+private const val TERMINATOR = "\r\n\r\n"
+private const val MAX_HEAD_BYTES = 16 * 1024
+internal const val MAX_BODY_BYTES = 256 * 1024
