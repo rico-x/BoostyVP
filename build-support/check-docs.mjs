@@ -25,6 +25,15 @@ function prose(text) {
     return !fence;
   }).join('\n');
 }
+/** Heading text without inline HTML; repeated, since one pass over "<<a>b>" leaves a tag behind. */
+function withoutTags(text) {
+  let previous;
+  do {
+    previous = text;
+    text = text.replace(/<[^>]*>/g, '');
+  } while (text !== previous);
+  return text;
+}
 const anchorsCache = new Map();
 function anchors(path) {
   if (anchorsCache.has(path)) return anchorsCache.get(path);
@@ -32,7 +41,7 @@ function anchors(path) {
   const result = new Set([...text.matchAll(/<(?:a|h[1-6])\b[^>]*(?:id|name)="([^"]+)"/g)].map(m => m[1]));
   const seen = new Map();
   for (const match of text.matchAll(/^#{1,6}\s+(.+?)\s*#*\s*$/gm)) {
-    const heading = match[1].replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/<[^>]*>/g, '').replace(/`/g, '');
+    const heading = withoutTags(match[1].replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')).replace(/`/g, '');
     const slug = heading.toLowerCase().replace(/[^\p{L}\p{N}\p{M}_\-\s]/gu, '').replace(/\s/g, '-');
     const count = seen.get(slug) ?? 0;
     result.add(slug + (count ? `-${count}` : '')); seen.set(slug, count + 1);
