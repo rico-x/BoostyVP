@@ -3,28 +3,14 @@ on:
   push:
     branches: [main]
     paths: ['site/**', 'build-support/build-pages.mjs', 'build-support/release-tools.mjs', 'docs/**', 'README.md', 'LICENSE.md', 'LICENSES/**', '.github/workflows/pages.yml']
-  release:
-    # Releases published or removed by hand; the release workflow calls this one itself.
-    types: [published, edited, deleted, unpublished]
   workflow_dispatch:
   workflow_call:
 permissions:
   contents: read
+# Releases published or removed by hand redeploy through pages-on-release.yml;
+# the release workflow calls this one itself.
 jobs:
-  redeploy-from-main:
-    # Release events run on the tag, but only main may deploy Pages.
-    if: github.event_name == 'release'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    permissions:
-      actions: write
-    steps:
-      - env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: gh workflow run pages.yml --ref main
   build:
-    if: github.event_name != 'release'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -53,7 +39,7 @@ jobs:
         with:
           path: build/pages
   deploy:
-    if: github.event_name != 'release' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 10
