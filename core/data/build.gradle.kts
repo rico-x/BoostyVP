@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "io.github.ricox.boostyvp.core.data"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 23

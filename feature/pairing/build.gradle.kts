@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "io.github.ricox.boostyvp.feature.pairing"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 23

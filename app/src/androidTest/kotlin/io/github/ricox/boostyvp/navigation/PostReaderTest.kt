@@ -91,6 +91,22 @@ class PostReaderTest {
     @Test fun wideImageStaysInsideItsItemAndNeverOverlapsParagraphs() = assertImageLayout(1600, 900)
     @Test fun portraitImageStaysInsideItsItemAndNeverOverlapsParagraphs() = assertImageLayout(600, 1200)
 
+    @Test fun videoCommentsShowCommentsDirectlyWithoutPostBodyOrVideo() {
+        screen(expandedInitially = true, commentsOnly = true)
+        compose.onNodeWithText("Тестовый комментарий").assertIsDisplayed()
+        compose.onNodeWithTag("post_reader").assertIsFocused()
+        compose.onNodeWithText("Длинный абзац для чтения с пульта. ".repeat(500)).assertDoesNotExist()
+        compose.onNodeWithTag("replies_one").assertExists()
+    }
+
+    @Test fun disabledVideoCommentsExplainRestrictionWithoutLoadingPrivateContent() {
+        screen(value = article.copy(commentsDenied = true), expandedInitially = true, commentsOnly = true)
+        compose.onNodeWithText("Тестовый комментарий").assertDoesNotExist()
+        compose.onNodeWithTag("comments_toggle").assertIsNotEnabled()
+        compose.onNodeWithText(io.github.ricox.boostyvp.localization.tr(
+            io.github.ricox.boostyvp.localization.UiText.post_reader_screen_007)).assertIsDisplayed()
+    }
+
     private fun assertImageLayout(width: Int, height: Int) {
         screen(value = article.copy(blocks = listOf(
             ContentBlock.Text("Перед иллюстрацией", null),
@@ -109,7 +125,7 @@ class PostReaderTest {
         assertTrue(compose.onNodeWithTag("post_reader").fetchSemanticsNode().boundsInRoot.width <= 720f * density + 1)
     }
 
-    private fun screen(value: Post = article, expandedInitially: Boolean = false) {
+    private fun screen(value: Post = article, expandedInitially: Boolean = false, commentsOnly: Boolean = false) {
         compose.setContent {
             BoostyVPTheme {
                 list = rememberLazyListState()
@@ -120,7 +136,7 @@ class PostReaderTest {
                 }, onLoadMore = {
                     loads++
                     state = state.copy(root = state.root.copy(loading = true))
-                }, onToggleReplies = { replies++ }, onClose = {}, list = list)
+                }, onToggleReplies = { replies++ }, onClose = {}, list = list, commentsOnly = commentsOnly)
             }
         }
         compose.waitForIdle()

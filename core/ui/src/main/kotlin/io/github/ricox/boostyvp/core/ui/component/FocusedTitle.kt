@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.core.ui.component
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.padding
@@ -60,7 +63,7 @@ internal fun FocusedTitle(title: String) {
             Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp, lineHeight = 20.sp),
                 color = colors.onSurface, maxLines = 3, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 onTextLayout = { clipped = it.hasVisualOverflow }, modifier = Modifier.testTag("focused_full_title"))
-            if (clipped) Text("INFO — прочитать целиком", style = MaterialTheme.typography.bodySmall,
+            if (clipped) Text(tr(UiText.focused_title_001), style = MaterialTheme.typography.bodySmall,
                 color = colors.onSurfaceVariant)
         }
     }

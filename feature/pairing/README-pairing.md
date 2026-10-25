@@ -1,49 +1,40 @@
-# Signing in
+# Вход и протокол сопряжения
 
-The TV has two routes:
+[English](README-pairing.en.md) · [Пользовательский вход](../../docs/USER_GUIDE.md#вход)
 
-- **Войти на этом ТВ** — native phone number and six-digit code fields. The main
-  button requests the code, then confirms it. Focus opens the TV keyboard;
-  D-pad Up/Down moves through the controls after dismissing the IME with Back.
-- **С телефона или компьютера** — browser pairing at `http://<TV-IP>:8765/link`.
-  Instructions adapt to Android, iPhone/iPad or a computer. A desktop can save
-  the ready-made bookmark by dragging it onto its bookmarks bar.
+## Войти на ТВ
 
-## Native phone login
+PhoneLoginViewModel хранит номер, шестизначный код и verification ID в памяти.
+Один UUID устройства используется для запроса и подтверждения. Реализация
+повторяет web-формы Boosty: POST `/auth/phone/verification_code/send`, затем
+PUT `/auth/phone/verification_code/confirm` с тем же device_id/device_os=web,
+opaque-кодом первого ответа и введённым sms_code. Bearer другого сеанса
+не отправляется. CAPTCHA/лимиты показываются безопасным сообщением, не обходятся.
+Токены сохраняются до перехода в каталог.
 
-`PhoneLoginViewModel` holds phone, code and server verification ID only in memory.
-It generates one device UUID for both requests. `BoostyPhoneLogin` uses the same
-form-encoded requests as Boosty's public web client (checked 2026-10-19):
+## Браузерный вход
 
-- `POST /auth/phone/verification_code/send`: phone, device_id, device_os=web.
-- `PUT /auth/phone/verification_code/confirm`: the same values, the opaque code
-  from the first response, and the six-digit sms_code entered by the user.
+Экран поднимает локальный java.net HTTP-сервер, обычный адрес
+`http://<TV-IP>:8765/link`. Сервер останавливается после успешного импорта
+или ухода с экрана. Это не 10-минутный сервер переноса настроек: у входа
+такого ограничения времени нет. Повторное открытие использует короткий адрес
+и новый внутренний ключ.
 
-The service uses the unauthenticated API client and never submits bearer tokens
-from another session. CAPTCHA requirements and rate limits are surfaced as safe
-messages; challenges are not bypassed. A confirmed access/refresh pair is saved
-before opening the feed.
+Закладка запускается на точном HTTPS-домене Boosty, проверяет локальный callback,
+читает сессию и шифрует AES-GCM. Возвращает ciphertext во fragment `/link`;
+страница удаляет fragment и просит подтверждение перед POST `/pair`.
+Legacy `/p/<key>` и ручная передача формы сохранены. 32-байтовый ключ доступен
+локальной странице; HTTP не аутентифицирует ТВ. Используется доверенная LAN,
+без внешнего relay/хранилища токенов. [Ограничения](../../SECURITY.md).
 
-## Browser pairing
+Страницы RU/EN и JS находятся в `localization/{ru,en}/src/main/resources`.
+Закладки, тексты и штатные инструкции используют выбранную локаль.
+Пароли/код/сессию и приватные URL не логировать и не сохранять в отчётах.
 
-The local java.net server starts when the QR screen opens and stops after one
-successful import or when that screen is left. There is no time limit. Reopening
-uses the same short link and a fresh internal key.
+## Проверки
 
-The saved bookmark runs on exact HTTPS Boosty, validates the local callback,
-reads the session and seals it with AES-GCM. It returns ciphertext in a fragment
-to `/link`; the page removes the fragment and asks the user to confirm before
-POSTing ciphertext to `/pair`. Legacy keyed `/p/<key>` callbacks and manual form
-submissions remain supported.
-
-The 32-byte key is available to the local page. This is a trusted-LAN flow; HTTP
-itself does not authenticate the TV. No external relay or third-party token
-storage is involved.
-
-## Checks
-
-- `PhoneLoginViewModelTest`: requests, confirmation, cooldown and state resets.
-- `PhoneAndRefreshProtocolTest`: HTTP methods, fields, token rotation and 401 replay.
-- `PhoneLoginRemoteTest`: native fields, TV IME and remote activation.
-- `ChromeBookmarkTest`: opt-in saved-bookmark test in Android Chrome.
-- `LiveRefreshTest`: opt-in real refresh and authenticated request after TV login.
+PhoneLoginViewModelTest, PhoneAndRefreshProtocolTest, PairingPageTest,
+PairingServerTest, MiniHttpServerTest и offline handoff обоих языков.
+PhoneLoginRemoteTest проверяет IME/пульт. ChromeBookmarkTest и LiveRefreshTest
+требуют явного opt-in и подходящего отдельного тестового окружения.
+Не путайте компиляцию этих APK с выполнением сценариев на настоящем сервисе.

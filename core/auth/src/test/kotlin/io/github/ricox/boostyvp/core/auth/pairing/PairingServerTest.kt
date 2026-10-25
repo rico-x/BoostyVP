@@ -29,6 +29,9 @@ import java.net.URLEncoder
 import java.util.concurrent.atomic.AtomicInteger
 
 class PairingServerTest {
+    private val language = io.github.ricox.boostyvp.localization.Language.selected
+    @org.junit.Before fun chooseRussian() { io.github.ricox.boostyvp.localization.Language.selected = "ru" }
+    @org.junit.After fun restoreLanguage() { io.github.ricox.boostyvp.localization.Language.selected = language }
     @Test(timeout = 10_000)
     fun `relay offer advertises external host while serving the fixed local port`() = runBlocking {
         mockkObject(PairingCrypto)

@@ -37,7 +37,7 @@ class ChromeBookmarkTest {
 
     @Test
     fun browserHandoffBookmarkExecutesTheScriptPackagedInTheTvApk() {
-        val script = checkNotNull(PairingCrypto::class.java.getResourceAsStream("/pairing/browser-handoff.js"))
+        val script = checkNotNull(PairingCrypto::class.java.getResourceAsStream("/localization/${io.github.ricox.boostyvp.localization.Language.code}/pairing/browser-handoff.js"))
             .bufferedReader().use { it.readText() }
         val bookmark = "javascript:" + URLEncoder.encode(script, "UTF-8").replace("+", "%20")
         checkBookmark(bookmark, By.textStartsWith("Закладка работает."))

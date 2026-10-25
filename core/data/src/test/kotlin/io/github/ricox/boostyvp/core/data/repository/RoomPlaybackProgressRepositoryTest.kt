@@ -3,6 +3,7 @@ package io.github.ricox.boostyvp.core.data.repository
 import io.github.ricox.boostyvp.core.data.library.PlaybackProgressDao
 import io.github.ricox.boostyvp.core.data.library.PlaybackProgressEntity
 import io.github.ricox.boostyvp.core.data.library.WatchHistoryDao
+import io.github.ricox.boostyvp.core.data.library.PersonalLibraryDao
 import io.mockk.mockk
 import io.mockk.coVerify
 import io.github.ricox.boostyvp.core.domain.auth.CurrentAccount
@@ -51,7 +52,8 @@ class RoomPlaybackProgressRepositoryTest {
     private val account = FakeAccount("boosty:1")
     private val legacy = FakeLegacy(emptyMap())
     private val history = mockk<WatchHistoryDao>(relaxed = true)
-    private val repository = RoomPlaybackProgressRepository(dao, account, legacy, history)
+    private val library = mockk<PersonalLibraryDao>(relaxed = true)
+    private val repository = RoomPlaybackProgressRepository(dao, account, legacy, history, library)
 
     private fun progress(post: String, video: String = "v-$post", position: Long = 60_000, duration: Long = 600_000,
         at: Long = 1, card: Boolean = true) = WatchProgress(post, video, position, duration, at,
@@ -119,7 +121,7 @@ class RoomPlaybackProgressRepositoryTest {
     @Test fun `an old position never overwrites a newer checkpoint`() = runTest {
         repository.save(progress("post-1", video = "video-1", position = 200_000))
         val fresh = RoomPlaybackProgressRepository(dao, account,
-            FakeLegacy(mapOf("post-1:video-1" to 20_000L)), history)
+            FakeLegacy(mapOf("post-1:video-1" to 20_000L)), history, library)
         assertEquals(200_000L, fresh.resumePositionMs("post-1", "video-1"))
     }
 
@@ -136,5 +138,15 @@ class RoomPlaybackProgressRepositoryTest {
     @Test fun `legacy positions without metadata do not invent history cards`() = runTest {
         repository.save(progress("legacy", card = false))
         coVerify(exactly = 0) { history.upsert(any()) }
+    }
+
+    @Test fun `completion marks watched but a short clip becoming ready does not`() = runTest {
+        repository.save(progress("ready", position = 0, duration = 15_000))
+        repository.save(progress("partial", position = 10_000, duration = 15_000))
+        repository.save(progress("done", position = 14_500, duration = 15_000))
+        repository.save(progress("long", position = 590_000, duration = 600_000))
+        coVerify(exactly = 0) { library.setWatched(match { it.postId == "ready" || it.postId == "partial" }) }
+        coVerify { library.setWatched(match { it.account == "boosty:1" && it.postId == "done" && it.watched }) }
+        coVerify { library.setWatched(match { it.postId == "long" && it.watched }) }
     }
 }

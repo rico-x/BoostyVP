@@ -40,6 +40,7 @@ internal fun TvPlayerHost(
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
         dialog.setCanceledOnTouchOutside(false)
         val view = factory(dialog.context)
+        view.onExitRequest = { dialog.dismiss() }
         dialog.setContentView(view, ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT,
         ))
@@ -55,6 +56,7 @@ internal fun TvPlayerHost(
             dialog.setOnDismissListener(null)
             dialog.dismiss()
             reference.view = null
+            view.onExitRequest = null
             currentRelease(view)
         }
     }

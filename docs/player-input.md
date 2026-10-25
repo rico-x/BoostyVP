@@ -1,49 +1,38 @@
-# Android TV player focus fix
+# Управление и фокус плеера
 
-This fork fixes native Media3 player focus after Compose navigation opens a
-dialog and asynchronous loading replaces its content with the video player.
+[English](player-input.en.md) · [Пользовательское управление](USER_GUIDE.md#плеер)
 
-- Request native focus after attachment/window focus, not in the view factory.
-- Host Media3 in its own fullscreen native ComponentDialog. A Compose owner can
-  no longer steal the native player's D-pad focus. Retain the navigation dialog
-  and the underlying screen/scroll position, with an explicit close callback.
-- Keep standard Android dispatch for transport, D-pad, Home and volume keys.
-- Keep existing hide-controls-then-close Back behavior.
-- Test delayed loading, pause/play, seeking, D-pad, secondary-window focus recovery and Back.
-- Also decode a locally generated H.264 test clip and verify that remote pause
-  freezes its position and remote play resumes playback. No account is needed.
+Media3 размещён в собственном полноэкранном ComponentDialog внутри сохраняемого
+маршрута навигации. Запрос native focus выполняется после attachment/window focus,
+а не только при создании View: асинхронная загрузка и Compose-окно не должны
+забирать пульт. Каталог под маршрутом сохраняет прокрутку и выбранную карточку.
 
-The release package is `io.github.ricox.boostyvp`, labeled **BoostyVP**,
-versioned by release date (`YYYY.MM.DD.N`, see [RELEASING.md](RELEASING.md)). It retains its persistent signing key.
-It cannot reuse another package's encrypted account storage. Sign in normally
-in the new app; uninstalling a previous client is a separate, explicit action.
-Updates within BoostyVP retain the package/signing identity and preserve login.
+TvPlayerView сохраняет обычную Android-доставку transport/D-pad/Home/volume.
+Menu показывает панель без паузы. Back закрывает сведения, затем панель,
+потом плеер; опция двойного Back подтверждает только последний шаг.
+Скрытые ←/→ используют накопление/ускорение seek и применяют его на отпускании.
+CH±, FF/REW и цифры переназначаются только при включённой настройке.
 
-An earlier local iteration named 0.2.0 added player preferences (seek increments, controller timeout,
-remembered speed) and a native Menu-key action that only reveals the controls.
-The quality picker restores the configured timeout rather than a hardcoded value.
-The player suite includes Menu and custom-increment transport regressions; app
-navigation tests cover the sidebar, recycled rows, settings persistence and focus
-restoration. Preferences tests use only the disposable debug package's storage.
+ON_PAUSE/ON_STOP сохраняют checkpoint перед паузой. ViewModel/SavedStateHandle
+держат текущую публикацию, точку и намерение, включая autoplay. Новая внешняя
+ссылка открывает новый target. Записи сериализованы, старый экземпляр не должен
+затереть явный перезапуск. Приватность отключённой записи на диск сохраняется.
 
-The `Verify and build BoostyVP` workflow runs unit tests, builds instrumentation
-APKs and five unsigned release variants. It has read-only repository permissions
-and no signing/account secrets. The separate `Build and publish BoostyVP`
-workflow signs only after verification, in the restricted `release` environment,
-then publishes checksums and provenance. See [RELEASING.md](RELEASING.md).
-Never upload login/session data; signing secrets belong only in protected storage.
+## Регрессии
 
-Run the device regression suite (no Boosty login/network/video required):
+PlayerControlsTest: задержка загрузки, native focus, Play/Pause, Menu, Back.
+RemoteSeekDeviceTest: шаги, накопление, удержание и сохранение состояния паузы.
+PlaybackReliabilityDeviceTest: keepScreenOn, next-up, таймер сна.
+RemoteOptionsDeviceTest: переназначения, геометрия, INFO.
+App PlayerReturnTest проверяет каталог под плеером. JVM PlaybackSessionTest
+и PlayerViewModelTest проверяют восстановление и границы записи.
 
 ```sh
 ./gradlew :feature:player:connectedDebugAndroidTest
 ```
 
-The focused regression class is
-`io.github.ricox.boostyvp.feature.player.PlayerControlsTest`.
-
-The test asset is a generated, silent, 60-second grey H.264 clip (640x360, 24 fps).
-Recreate it with:
+Тесты используют синтетические состояния/локальные клипы без Boosty-аккаунта.
+Grey H.264 fixture 640×360/24fps, 60 с можно воссоздать:
 
 ```sh
 ffmpeg -f lavfi -i color=c=0x242424:s=640x360:r=24 -t 60 \
@@ -51,7 +40,8 @@ ffmpeg -f lavfi -i color=c=0x242424:s=640x360:r=24 -t 60 \
   -movflags +faststart feature/player/src/androidTest/assets/remote-control-test.mp4
 ```
 
-Back/transport tests disable controller auto-hide so remote injection/idle waits
-cannot race its timer. A separate test explicitly checks timed auto-hide.
-Before each player test, an explicit wake key dismisses Google TV's screensaver:
-UiDevice.wakeUp() alone does nothing when the display is on but the TV is Dreaming.
+Wake key выводит ТВ из Dreaming; одного wakeUp() при включённом дисплее мало.
+Для регрессий Back/transport автоскрытие контролируется явно, таймер проверяется
+отдельно. DocumentationCaptureTest — opt-in съёмка RU/EN-next-up, а не новый
+live-тест публикации; его синтетические данные помечаются в документации.
+Полный текущий охват/ограничения: [готовность](RELEASE_READINESS.md).

@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.feature.player
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import android.app.AlertDialog
 import android.view.View
 import android.view.ViewGroup
@@ -109,9 +112,9 @@ internal class VideoQualityController(
     }
 
     private fun showLabel(height: Int?) {
-        val label = height?.let { "${it}p" } ?: "Авто"
-        qualityButton?.text = "Качество: $label"
-        qualityButton?.contentDescription = "Качество видео: $label"
+        val label = height?.let { "${it}p" } ?: tr(UiText.video_quality_controller_001)
+        qualityButton?.text = tr(UiText.video_quality_controller_002, label)
+        qualityButton?.contentDescription = tr(UiText.video_quality_controller_003, label)
     }
 
     fun onTracksChanged() {
@@ -143,14 +146,14 @@ internal class VideoQualityController(
             candidates,
             tracks.map { (group, index) -> group.getTrackFormat(index).height },
         )
-        val labels = arrayOf("Авто", *heights.map { "${it}p" }.toTypedArray())
+        val labels = arrayOf(tr(UiText.video_quality_controller_001), *heights.map { "${it}p" }.toTypedArray())
         val checked = selectedHeight?.let { heights.indexOf(it) + 1 } ?: 0
         val previousTimeout = playerView.controllerShowTimeoutMs
         val appearance = InterfacePreferences(playerView.context).load()
         playerView.controllerShowTimeoutMs = 0
         dialog = AlertDialog.Builder(playerView.context)
             .setCustomTitle(TextView(playerView.context).apply {
-                text = "Качество видео"
+                text = tr(UiText.video_quality_controller_004)
                 textSize = 24f
                 typeface = Typeface.create("sans-serif", Typeface.BOLD)
                 setTextColor(playerView.context.getColor(UiR.color.boostyvp_text))
@@ -161,7 +164,7 @@ internal class VideoQualityController(
                 select(heights.getOrNull(which - 1))
                 openedDialog.dismiss()
             }
-            .setNegativeButton("Отмена", null)
+            .setNegativeButton(tr(UiText.library_privacy_dialog_012), null)
             .create()
             .apply {
                 setOnDismissListener {
@@ -188,9 +191,9 @@ internal class VideoQualityController(
 
     private fun select(height: Int?) {
         selectedHeight = height
-        val label = height?.let { "${it}p" } ?: "Авто"
-        qualityButton?.text = "Качество: $label"
-        qualityButton?.contentDescription = "Качество видео: $label"
+        val label = height?.let { "${it}p" } ?: tr(UiText.video_quality_controller_001)
+        qualityButton?.text = tr(UiText.video_quality_controller_002, label)
+        qualityButton?.contentDescription = tr(UiText.video_quality_controller_003, label)
         player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
             .clearOverridesOfType(C.TRACK_TYPE_VIDEO)
             .build()

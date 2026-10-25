@@ -2,6 +2,10 @@ name: Build and publish BoostyVP
 on:
   workflow_dispatch:
     inputs:
+      version:
+        description: Release version with today's UTC date, e.g. 2026.10.25.2; empty picks the next free number
+        type: string
+        default: ''
       prerelease:
         description: Mark the release as a pre-release
         type: boolean
@@ -42,8 +46,10 @@ jobs:
           fetch-tags: true
       - name: Today's date and the next release number that day
         id: next
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
         run: |
-          version="$(node build-support/release-tools.mjs next-version)"
+          version="$(node build-support/release-tools.mjs next-version "$REQUESTED_VERSION")"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Release version: $version" >> "$GITHUB_STEP_SUMMARY"
   verify:

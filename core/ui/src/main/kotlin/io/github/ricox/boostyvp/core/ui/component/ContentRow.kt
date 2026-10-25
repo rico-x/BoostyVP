@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.core.ui.component
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
@@ -93,7 +96,7 @@ fun PostRow(
                             color = LocalContentColor.current.copy(alpha = 0.75f),
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    Text("Все публикации", style = MaterialTheme.typography.labelLarge, color = LocalAccentText.current)
+                    Text(tr(UiText.catalog_index_004), style = MaterialTheme.typography.labelLarge, color = LocalAccentText.current)
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, null,
                         tint = LocalAccentText.current, modifier = Modifier.size(20.dp))
                 }

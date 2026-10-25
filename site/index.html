@@ -1,17 +1,42 @@
 <!doctype html>
-<html lang="ru">
+<html lang="{{LANG}}">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="dark"><meta name="description" content="BoostyVP — независимый клиент Boosty для Android TV: подписки, нативный плеер и управление пультом.">
-<title>BoostyVP — ваши подписки на большом экране</title>
-<link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="stylesheet" href="styles.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="{{DESCRIPTION}}">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; base-uri 'none'; form-action 'none'">
+  <title>{{TITLE}}</title>
+  <link rel="icon" href="{{ASSETS}}icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ASSETS}}styles.css">
 </head>
 <body>
-<header class="wrap"><a class="brand" href="#top" aria-label="BoostyVP — начало"><img src="icon.svg" width="28" height="28" alt="">BoostyVP</a><nav aria-label="Навигация"><a href="#features">Возможности</a><a href="#screens">Скриншоты</a><a href="#downloads">Скачать</a><a href="#docs">Документация</a><a href="{{REPO}}">GitHub ↗</a></nav></header>
+<header class="wrap">
+  <a class="brand" href="#top"><img src="{{ASSETS}}icon.svg" width="28" height="28" alt="">BoostyVP</a>
+  <nav aria-label="{{DOCS_TITLE}}">{{NAV}}<a href="{{OTHER}}" lang="{{OTHER_LANG}}">{{SWITCH}}</a><a href="{{REPO}}">GitHub ↗</a></nav>
+</header>
 <main id="top">
-<section class="hero wrap"><p class="eyebrow">ANDROID TV / GOOGLE TV <span>{{RELEASE_LABEL}}</span></p><h1>Ваши подписки.<br>Большой экран.<br><em>Обычный пульт.</em></h1><p class="lead">Независимый клиент Boosty: спокойный тёмный интерфейс, нативное видео и настройки под ваш телевизор. Без рекламных блоков и аналитики проекта.</p><div class="actions">{{HERO_ACTIONS}}</div><p class="note">Android 6.0+ · Русский интерфейс · Собственная подписка Boosty</p><aside class="notice"><strong>Неофициальная ранняя версия.</strong> Не связана с Boosty или SmartTube. Для платных публикаций нужен действующий доступ; ограничения подписки не обходятся.</aside></section>
-<section id="features" class="wrap section"><p class="eyebrow">УДОБНО С ДИВАНА</p><h2>Контент на первом месте.</h2><div class="features"><article><span class="number">01</span><h3>Ваш каталог</h3><p>Подписки по авторам, общая лента «Новое», текстовые публикации и свёрнутые комментарии.</p></article><article><span class="number">02</span><h3>Нативный плеер</h3><p>Пауза и перемотка с пульта, качество, скорость по авторам, следующее видео и восстановление ссылок.</p></article><article><span class="number">03</span><h3>Под ваш экран</h3><p>Пять размеров карточек, независимые подписи, плотность, темы и компактная страница автора.</p></article><article><span class="number">04</span><h3>Личная история</h3><p>История по аккаунтам хранится на ТВ. Долгое OK открывает действия; обычное — запускает просмотр.</p></article></div></section>
-{{SCREENSHOTS}}<section id="downloads" class="wrap section">{{DOWNLOADS}}</section>
-<section id="docs" class="wrap section"><p class="eyebrow">БЕЗ СКРЫТЫХ ОБЕЩАНИЙ</p><h2>Документация и открытый план.</h2><div class="docs"><a href="{{REPO}}/blob/main/docs/USER_GUIDE.md">Руководство: установка и управление <span>↗</span></a><a href="{{REPO}}/blob/main/docs/ROADMAP.md">Что готово и что дальше <span>↗</span></a><a href="{{REPO}}/blob/main/docs/PRIVACY.md">Какие данные хранятся <span>↗</span></a><a href="{{REPO}}/blob/main/SECURITY.md">Известные риски <span>↗</span></a><a href="{{REPO}}/blob/main/CONTRIBUTING.md">Участие в проекте <span>↗</span></a><a href="{{REPO}}/blob/main/docs/AI_ASSISTANCE.md">Как используются LLM <span>↗</span></a></div><div class="legal"><h3>Происхождение и лицензия</h3><p>Спасибо ARDcode за идею и исходную реализацию <a href="https://github.com/ARDcode/boosty-tv-app">Boosty TV</a>. MIT применяется только к оригинальным новым изменениям участников BoostyVP, не ко всему унаследованному коду или APK. <a href="https://github.com/ARDcode/boosty-tv-app/issues/1">Разрешение на MIT для исходной базы запрошено</a>, пока не получено.</p><p>В разработке участвуют LLM-ассистенты; в самом приложении LLM нет. Это экспериментальная программа «как есть», не независимый аудит и не гарантия безопасности. Перед использованием прочтите <a href="{{REPO}}/blob/main/LICENSE.md">область лицензирования</a> и <a href="{{REPO}}/blob/main/DISCLAIMER.md">отказ от гарантий</a>.</p></div></section>
-</main><footer class="wrap"><a class="brand" href="#top">BoostyVP</a><p>Rico-X & contributors · {{VERSION_FOOTER}}<br>Статический сайт. Без трекеров и удалённых шрифтов.</p><a href="{{REPO}}/issues">Обратная связь ↗</a></footer>
-</body></html>
+  <section class="hero wrap">
+    <p class="eyebrow">ANDROID TV / GOOGLE TV <span>{{RELEASE_LABEL}}</span></p>
+    <h1>{{HEADING}}</h1>
+    <p class="lead">{{LEAD}}</p>
+    <div class="actions"><a class="button" href="{{GUIDE_URL}}">{{GUIDE}} <span>↗</span></a>{{HERO_ACTIONS}}</div>
+    <p class="note">{{NOTE}}</p><aside class="notice">{{NOTICE}}</aside>
+  </section>
+  <section id="features" class="wrap section">
+    <p class="eyebrow">{{FEATURE_EYEBROW}}</p><h2>{{FEATURE_TITLE}}</h2>
+    <div class="features">{{FEATURES}}</div><p class="note">{{SOURCE_NOTE}}</p>
+  </section>
+  {{SCREENSHOTS}}
+  <section id="downloads" class="wrap section">{{DOWNLOADS}}</section>
+  <section id="docs" class="wrap section">
+    <p class="eyebrow">{{DOCS_EYEBROW}}</p><h2>{{DOCS_TITLE}}</h2>
+    <div class="docs">{{DOCS}}</div>
+    <div class="legal"><h3>{{LEGAL_TITLE}}</h3><p>{{LEGAL}}</p><p>{{LEGAL_MORE}}</p>
+      <p><a href="{{REPO}}/blob/main/{{LICENSE_FILE}}">{{LICENSE}}</a> · <a href="{{REPO}}/blob/main/{{DISCLAIMER_FILE}}">{{DISCLAIMER}}</a></p>
+    </div>
+  </section>
+</main>
+<footer class="wrap"><a class="brand" href="#top">BoostyVP</a><p>Rico-X &amp; contributors · {{VERSION_FOOTER}}<br>{{FOOTER}}</p><a href="{{REPO}}/issues">{{FEEDBACK}} ↗</a></footer>
+</body>
+</html>

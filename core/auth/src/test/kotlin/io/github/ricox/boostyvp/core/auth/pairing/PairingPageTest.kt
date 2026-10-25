@@ -7,6 +7,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PairingPageTest {
+    private val language = io.github.ricox.boostyvp.localization.Language.selected
+    @org.junit.Before fun chooseRussian() { io.github.ricox.boostyvp.localization.Language.selected = "ru" }
+    @org.junit.After fun restoreLanguage() { io.github.ricox.boostyvp.localization.Language.selected = language }
     @Test
     fun `pairing page consistently presents the fork name`() {
         val page = PairingPage.html("A".repeat(43))
@@ -23,7 +26,7 @@ class PairingPageTest {
         assertTrue(url.startsWith("javascript:"))
         // Android's EditText silently truncates pasted single-line text at 5,000.
         assertTrue("Bookmark is ${url.length} characters; keep margin below 5,000", url.length <= 4_500)
-        val script = checkNotNull(javaClass.getResourceAsStream("/pairing/browser-handoff.js"))
+        val script = checkNotNull(javaClass.getResourceAsStream("/localization/ru/pairing/browser-handoff.js"))
             .bufferedReader().use { it.readText() }
         assertEquals(script, URLDecoder.decode(url.removePrefix("javascript:"), "UTF-8"))
         val installLink = Regex("""<a id="install-bookmark"[^>]*href="([^"]+)"[^>]*draggable="true"[^>]*>BoostyVP</a>""")

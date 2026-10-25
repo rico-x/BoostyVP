@@ -6,6 +6,10 @@ import io.github.ricox.boostyvp.core.data.library.PlaybackProgressDao
 import io.github.ricox.boostyvp.core.data.library.PlaybackProgressEntity
 import io.github.ricox.boostyvp.core.data.library.WatchHistoryDao
 import io.github.ricox.boostyvp.core.data.library.WatchHistoryEntity
+import io.github.ricox.boostyvp.core.data.library.PersonalLibraryDao
+import io.github.ricox.boostyvp.core.data.library.WatchedPostEntity
+import io.github.ricox.boostyvp.core.data.library.LibraryRecordingStore
+import io.github.ricox.boostyvp.core.data.library.LibraryRecording
 import io.github.ricox.boostyvp.core.domain.auth.CurrentAccount
 import io.github.ricox.boostyvp.core.domain.repository.PlaybackProgressRepository
 import io.github.ricox.boostyvp.core.model.WatchProgress
@@ -55,20 +59,33 @@ class RoomPlaybackProgressRepository @Inject constructor(
     private val account: CurrentAccount,
     private val legacy: LegacyPlaybackPositions,
     private val history: WatchHistoryDao,
+    private val library: PersonalLibraryDao,
+    private val recording: LibraryRecordingStore? = null,
 ) : PlaybackProgressRepository {
     private val migration = Mutex()
     @Volatile private var migrated = false
 
+    override suspend fun recordsResumePositions(): Boolean = withContext(Dispatchers.IO) {
+        val key = account.currentKey() ?: return@withContext false
+        recording?.load(key)?.resume ?: true
+    }
+
     // NonCancellable: the last checkpoint arrives while the player closes and
     // its scope is being cancelled; it must still reach the database.
-    override suspend fun save(progress: WatchProgress) = withContext(NonCancellable) {
+    override suspend fun save(progress: WatchProgress) = withContext(NonCancellable + Dispatchers.IO) {
         val key = account.currentKey() ?: return@withContext
         migrateLegacy(key)
+        val policy = recording?.load(key) ?: LibraryRecording()
         if (progress.hasCard && progress.postId.isNotBlank() && progress.videoId.isNotBlank()) {
-            history.upsert(WatchHistoryEntity(key, progress.postId, progress.videoId,
+            if (policy.history) history.upsert(WatchHistoryEntity(key, progress.postId, progress.videoId,
                 progress.positionMs.coerceAtLeast(0), progress.durationMs.coerceAtLeast(0), progress.updatedAt,
                 progress.blogUrl, progress.title, progress.blogTitle, progress.previewUrl))
+            if (policy.watched && progress.durationMs > 0 && progress.positionMs >= progress.durationMs -
+                minOf(30_000L, progress.durationMs / 20)) {
+                library.setWatched(WatchedPostEntity(key, progress.postId, true))
+            }
         }
+        if (!policy.resume) return@withContext
         if (progress.isWorthResuming()) {
             dao.upsert(progress.toEntity(key))
         } else {
@@ -108,6 +125,8 @@ class RoomPlaybackProgressRepository @Inject constructor(
                 emitAll(rows(key))
             }
         }
+
+    internal suspend fun prepareLibrary(key: String) { migrateLegacy(key) }
 
     private suspend fun migrateLegacy(key: String) {
         if (migrated) return

@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.core.ui.component
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
@@ -27,7 +30,7 @@ internal fun FullTitleDialog(title: String, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(Modifier.widthIn(max = 800.dp).fillMaxWidth().heightIn(max = 440.dp)
             .testTag("full_title_dialog").background(MaterialTheme.colorScheme.surface).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text("Полное название · ↑ ↓ — читать · Назад — закрыть", style = MaterialTheme.typography.bodySmall)
+            Text(tr(UiText.full_title_dialog_001), style = MaterialTheme.typography.bodySmall)
             Text(title, style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.weight(1f, fill = false).verticalScroll(scroll).testTag("full_title_text").focusRequester(focus)
                     .onPreviewKeyEvent { event ->

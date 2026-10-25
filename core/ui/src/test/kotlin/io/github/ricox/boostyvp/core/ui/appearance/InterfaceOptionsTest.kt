@@ -46,8 +46,17 @@ class InterfaceOptionsTest {
     }
 
     @Test fun collapsedMenuRetainsOverscanAndAFullButtonTarget() {
-        assertEquals(192, BrowseDimensions.contentSidebarWidth(InterfaceOptions(autoCollapseSidebar = false)))
+        assertEquals(MenuOptions().widthDp, BrowseDimensions.contentSidebarWidth(InterfaceOptions(autoCollapseSidebar = false)))
         assertEquals(112, BrowseDimensions.contentSidebarWidth(InterfaceOptions(autoCollapseSidebar = true)))
         assertTrue(BrowseDimensions.CollapsedSidebarDp >= 48 + 48 + 16)
+    }
+
+    @Test fun focusPreviewUsesTheSameZoomAndAnimationAsRealCards() {
+        for (zoom in listOf(false, true)) for (animation in listOf(false, true)) {
+            val options = InterfaceOptions(focusZoom = zoom, animateFocus = animation)
+            assertEquals(1f, options.focusScale(false), 0f)
+            assertEquals(if (zoom) 1.02f else 1f, options.focusScale(true), 0f)
+            assertEquals(if (animation) 120 else 0, options.focusAnimationMillis)
+        }
     }
 }

@@ -136,7 +136,11 @@ class HistoryActionsTest {
         val catalog = compose.onNodeWithTag("catalog_viewport").fetchSemanticsNode().boundsInRoot
         assertTrue("Title reading space must not shorten the menu", sidebar.bottom > catalog.bottom)
         focus("sidebar_subscriptions")
-        repeat(6) { device.pressDPadDown(); compose.waitForIdle() }
+        listOf("Новое", "История", "Смотреть позже", "Избранные авторы", "Избранные видео", "Поиск", "Очередь", "Обновить",
+            "Только новые", "Плеер", "Интерфейс", "Выйти").forEach { label ->
+            device.pressDPadDown(); compose.waitForIdle()
+            compose.onNodeWithText(label).assertIsFocused().assertIsDisplayed()
+        }
         compose.onNodeWithText("Выйти").assertIsFocused().assertIsDisplayed()
     }
 

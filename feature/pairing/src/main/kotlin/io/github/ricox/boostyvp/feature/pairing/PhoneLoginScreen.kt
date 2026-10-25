@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.feature.pairing
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -90,11 +93,11 @@ fun PhoneLoginForm(
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                 BoostyVPBrand()
-                ScreenHeading("Вход по номеру\nтелефона",
-                    "Используйте номер, привязанный к вашему аккаунту Boosty.")
+                ScreenHeading(tr(UiText.phone_login_screen_001),
+                    tr(UiText.phone_login_screen_002))
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StatusChip(if (state.codeRequested) "01  Номер указан" else "01  Укажите номер телефона")
-                    Text(if (state.codeRequested) "02  Введите код подтверждения" else "02  Подтвердите вход кодом",
+                    StatusChip(if (state.codeRequested) tr(UiText.phone_login_screen_003) else tr(UiText.phone_login_screen_004))
+                    Text(if (state.codeRequested) tr(UiText.phone_login_screen_005) else tr(UiText.phone_login_screen_006),
                         style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
                 }
                 if (onBack != null) BackButton(onBack)
@@ -106,11 +109,11 @@ fun PhoneLoginForm(
                     .padding(28.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Text("Войти в аккаунт", style = MaterialTheme.typography.headlineSmall)
-                PhoneField("Номер телефона", state.phone, onPhoneChange, "phone_number", phoneFocus,
+                Text(tr(UiText.phone_login_screen_007), style = MaterialTheme.typography.headlineSmall)
+                PhoneField(tr(UiText.phone_login_screen_008), state.phone, onPhoneChange, "phone_number", phoneFocus,
                     enabled = !state.busy, type = KeyboardType.Phone, imeAction = ImeAction.Next,
                     onNext = { if (state.codeRequested) codeFocus.requestFocus() else if (state.canSubmit) submitFocus.requestFocus() })
-                PhoneField("Код подтверждения", state.code, onCodeChange, "phone_code", codeFocus,
+                PhoneField(tr(UiText.phone_login_screen_009), state.code, onCodeChange, "phone_code", codeFocus,
                     enabled = state.codeRequested && !state.busy, type = KeyboardType.Number,
                     imeAction = ImeAction.Done, onPrevious = { phoneFocus.requestFocus() },
                     onNext = { if (state.canSubmit) submitFocus.requestFocus() },
@@ -120,7 +123,7 @@ fun PhoneLoginForm(
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (state.codeRequested && state.resendIn > 0) {
-                    Text("Повторный код через ${state.resendIn} с. Чтобы изменить номер, вернитесь в первое поле.",
+                    Text(tr(UiText.phone_login_screen_010, state.resendIn),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }

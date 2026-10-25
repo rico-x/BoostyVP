@@ -14,6 +14,11 @@ class PlayerPreferences(context: Context) {
         sleepTimerMinutes = prefs.getInt("sleep_timer_minutes", 0),
         rememberQuality = prefs.getBoolean("remember_quality", true),
         speedPerAuthor = prefs.getBoolean("speed_per_author", false),
+        channelVideoNavigation = prefs.getBoolean("channel_video_navigation", false),
+        transportVideoNavigation = prefs.getBoolean("transport_video_navigation", false),
+        digitSeek = prefs.getBoolean("digit_seek", false),
+        doubleBackExit = prefs.getBoolean("double_back_exit", false),
+        videoScale = VideoScale.fromId(prefs.getString("video_scale", null)),
     ).normalized()
 
     fun save(options: PlayerOptions) {
@@ -27,6 +32,11 @@ class PlayerPreferences(context: Context) {
             .putInt("sleep_timer_minutes", safe.sleepTimerMinutes)
             .putBoolean("remember_quality", safe.rememberQuality)
             .putBoolean("speed_per_author", safe.speedPerAuthor)
+            .putBoolean("channel_video_navigation", safe.channelVideoNavigation)
+            .putBoolean("transport_video_navigation", safe.transportVideoNavigation)
+            .putBoolean("digit_seek", safe.digitSeek)
+            .putBoolean("double_back_exit", safe.doubleBackExit)
+            .putString("video_scale", safe.videoScale.id)
             .apply()
         // Switching the preference off forgets the remembered choice as well.
         if (!safe.rememberQuality) prefs.edit().remove(KEY_QUALITY).apply()

@@ -20,14 +20,25 @@ test('every later release installs over an earlier one and over the old 0.x buil
   assert.ok(codes[0] > 7, 'Above the last 0.0.3 versionCode');
   assert.ok(parseVersion('2099.12.31.99').code <= 2_100_000_000, 'Within the Android limit');
 });
-test('the date follows Moscow time and the number counts that day\'s tags from 1', () => {
-  const lateUtc = new Date('2026-10-24T21:30:00Z');  // already 25 October in Moscow
-  assert.equal(releaseDate(lateUtc), '2026.10.25');
+test('the date follows UTC and the number counts that day\'s tags from 1', () => {
+  assert.equal(releaseDate(new Date('2026-10-24T23:59:59Z')), '2026.10.24', 'Still 24 October in UTC');
+  assert.equal(releaseDate(new Date('2026-10-25T00:00:00Z')), '2026.10.25');
+  assert.equal(releaseDate(new Date('2026-10-25T02:30:00+03:00')), '2026.10.24', 'Moscow time does not count');
   const now = new Date('2026-10-24T09:00:00Z');
   assert.equal(nextVersion([], now).name, '2026.10.24.1');
   assert.equal(nextVersion(['v2026.10.23.4', 'v0.0.3', 'build-5.1'], now).name, '2026.10.24.1');
   assert.equal(nextVersion(['v2026.10.24.1', 'v2026.10.24.3', 'v2026.10.24.2'], now).name, '2026.10.24.4');
   assert.equal(nextVersion(['v2026.10.24.0', 'v2026.10.24.x'], now).name, '2026.10.24.1', 'Only real release numbers count');
+});
+test('a requested version skips numbers but never reuses one or leaves today', () => {
+  const now = new Date('2026-10-24T09:00:00Z');
+  assert.equal(nextVersion([], now, '2026.10.24.2').name, '2026.10.24.2');
+  assert.equal(nextVersion(['v2026.10.24.2'], now, '2026.10.24.5').code, 26102405);
+  assert.throws(() => nextVersion(['v2026.10.24.2'], now, '2026.10.24.2'), /not above/);
+  assert.throws(() => nextVersion(['v2026.10.24.3'], now, '2026.10.24.2'), /not above/);
+  assert.throws(() => nextVersion([], now, '2026.10.23.2'), /today's UTC date/);
+  assert.throws(() => nextVersion([], now, '2026.10.24.0'), /not above/, 'A release number starts at 1');
+  assert.throws(() => nextVersion([], now, '2026.10.24.2;id'), /YYYY.MM.DD.N/);
 });
 test('all four real architectures and universal are required', () => {
   assert.equal(parseOutputs(fixture(), v).length, 5);

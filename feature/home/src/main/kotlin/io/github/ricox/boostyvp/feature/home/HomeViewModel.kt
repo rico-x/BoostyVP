@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.feature.home
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,13 +23,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class HomeRow(val blog: Blog, val posts: List<Post>)
+data class HomeRow(val blog: Blog, val posts: List<Post>, val loading: Boolean = false, val failed: Boolean = false)
 
 sealed interface HomeUiState {
     data object Loading : HomeUiState
     data class Error(val message: String) : HomeUiState
     data object NoSubscriptions : HomeUiState
-    data class Content(val rows: List<HomeRow>) : HomeUiState
+    data class Content(val rows: List<HomeRow>, val refreshing: Boolean = false, val refreshFailed: Boolean = false) : HomeUiState
 }
 
 @HiltViewModel
@@ -42,26 +45,60 @@ class HomeViewModel @Inject constructor(
         .map { entries -> entries.map { it.toCardPost() } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     private var refreshJob: Job? = null
+    private val authorJobs = mutableMapOf<String, Job>()
+    private var generation = 0
 
     init { refresh() }
 
     fun refresh() {
+        generation++
+        authorJobs.values.forEach(Job::cancel); authorJobs.clear()
         refreshJob?.cancel()
-        _state.value = HomeUiState.Loading
+        if (_state.value !is HomeUiState.Content) _state.value = HomeUiState.Loading
         refreshJob = viewModelScope.launch {
             try {
-                val feed = getHomeFeed()
+                val feed = getHomeFeed { update ->
+                    if (update.hasSubscriptions) {
+                        val old = (_state.value as? HomeUiState.Content)?.rows.orEmpty().associateBy { it.blog.url }
+                        _state.value = HomeUiState.Content(update.rows.map {
+                            HomeRow(it.blog, if (it.loading || it.failed) old[it.blog.url]?.posts.orEmpty() else it.posts, it.loading, it.failed)
+                        }, update.refreshing)
+                    }
+                }
                 currentCoroutineContext().ensureActive()
                 _state.value = if (feed.hasSubscriptions) {
-                    HomeUiState.Content(feed.rows.map { HomeRow(it.blog, it.posts) })
+                    val old = (_state.value as? HomeUiState.Content)?.rows.orEmpty().associateBy { it.blog.url }
+                    HomeUiState.Content(feed.rows.map { HomeRow(it.blog, if (it.failed) old[it.blog.url]?.posts.orEmpty() else it.posts, it.loading, it.failed) })
                 } else {
                     HomeUiState.NoSubscriptions
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _state.value = HomeUiState.Error(e.message ?: "Не удалось подключиться к Boosty")
+                val cached = _state.value as? HomeUiState.Content
+                _state.value = cached?.copy(refreshing = false, refreshFailed = true)
+                    ?: HomeUiState.Error(tr(UiText.home_view_model_001))
             }
+        }
+    }
+
+    fun retryAuthor(url: String) {
+        val content = _state.value as? HomeUiState.Content ?: return
+        if (content.refreshing) return
+        val row = content.rows.find { it.blog.url == url } ?: return
+        if (row.loading) return
+        val requestGeneration = generation
+        fun replace(value: HomeRow) {
+            if (requestGeneration != generation) return
+            val current = _state.value as? HomeUiState.Content ?: return
+            _state.value = current.copy(rows = current.rows.map { if (it.blog.url == url) value else it })
+        }
+        replace(row.copy(loading = true, failed = false))
+        authorJobs[url] = viewModelScope.launch {
+            try { val loaded = getHomeFeed.author(row.blog); replace(HomeRow(loaded.blog, loaded.posts)) }
+            catch (e: CancellationException) { throw e }
+            catch (_: Exception) { replace(row.copy(loading = false, failed = true)) }
+            finally { if (requestGeneration == generation) authorJobs.remove(url) }
         }
     }
 }

@@ -47,7 +47,7 @@ class GetHomeFeedTest {
 
     @Test fun `one failed author does not hide successful rows`() = runTest {
         val feed = loader(3) { if (it == "2") throw IOException() else listOf(post(it)) }()
-        assertEquals(listOf("1", "3"), feed.rows.map { it.blog.url })
+        assertEquals(listOf("1", "3"), feed.rows.filterNot { it.failed }.map { it.blog.url })
     }
 
     @Test fun `cancellation propagates instead of becoming an empty feed`() = runTest {
@@ -67,5 +67,23 @@ class GetHomeFeedTest {
         }()
         assertEquals(25, feed.rows.size)
         assertEquals(4, peak)
+    }
+
+    @Test fun `first cards are visible before slowest author while subscription order stays stable`() = runTest {
+        val updates = mutableListOf<Pair<Long, HomeFeed>>()
+        val load = loader(3) { delay(if (it == "1") 1_000 else 50); listOf(post(it)) }
+        load { updates += testScheduler.currentTime to it }
+        val firstCard = updates.first { (_, feed) -> feed.rows.any { it.posts.isNotEmpty() } }
+        assertEquals(50L, firstCard.first)
+        assertEquals(listOf("1", "2", "3"), firstCard.second.rows.map { it.blog.url })
+        assertTrue(firstCard.second.rows.first().loading)
+        assertEquals(1_000L, updates.last().first)
+        assertFalse(updates.last().second.refreshing)
+    }
+
+    @Test fun `partial failure remains a named row with retry context`() = runTest {
+        val feed = loader(2) { if (it == "2") throw IOException() else listOf(post(it)) }()
+        assertTrue(feed.rows.last().failed)
+        assertEquals("2", feed.rows.last().blog.url)
     }
 }

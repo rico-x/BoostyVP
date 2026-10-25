@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.core.ui.appearance
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
@@ -11,7 +14,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -28,6 +31,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlin.math.roundToInt
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -42,12 +48,12 @@ internal fun InterfacePreview(section: InterfaceSection, modifier: Modifier = Mo
     val colors = MaterialTheme.colorScheme
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(when (section) {
-            InterfaceSection.Catalog -> "Карточки в каталоге"
-            InterfaceSection.Text -> "Название и подписи"
-            InterfaceSection.Focus -> "Выделенная карточка"
-            InterfaceSection.Author -> "Страница автора"
-            InterfaceSection.Theme -> "Тема интерфейса"
-            InterfaceSection.Player -> "Панель плеера"
+            InterfaceSection.Catalog -> tr(UiText.interface_preview_001)
+            InterfaceSection.Text -> tr(UiText.interface_preview_002)
+            InterfaceSection.Focus -> tr(UiText.interface_preview_003)
+            InterfaceSection.Author -> tr(UiText.interface_preview_004)
+            InterfaceSection.Theme -> tr(UiText.interface_preview_005)
+            InterfaceSection.Player -> tr(UiText.interface_preview_006)
         }, style = MaterialTheme.typography.titleMedium)
         Box(Modifier.fillMaxWidth().weight(1f).clipToBounds(), contentAlignment = Alignment.Center) {
             when (section) {
@@ -57,13 +63,7 @@ internal fun InterfacePreview(section: InterfaceSection, modifier: Modifier = Mo
                         Modifier.focusProperties { canFocus = false }.then(if (index == 0) Modifier.testTag("interface_preview") else Modifier),
                         inAuthorRow = section == InterfaceSection.Catalog) }
                 }
-                InterfaceSection.Focus -> Column(horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    PostCard(PreviewPost, {}, Modifier.focusProperties { canFocus = false }
-                        .testTag("interface_focus_preview"), previewFocused = true)
-                    if (o.fullTitle) Text(PreviewPost.title, style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.background(colors.surface, RoundedCornerShape(8.dp)).padding(12.dp))
-                }
+                InterfaceSection.Focus -> FocusPreview(o)
                 InterfaceSection.Author -> ScaledPreview("interface_author_preview") {
                     LazyVerticalGrid(columns = GridCells.Adaptive(LocalCardSize.current.widthDp.dp),
                         modifier = Modifier.fillMaxSize().background(colors.background),
@@ -75,7 +75,7 @@ internal fun InterfacePreview(section: InterfaceSection, modifier: Modifier = Mo
                             AuthorHeader(PreviewBlog, "author", {}, interactive = false)
                         }
                         item(span = { GridItemSpan(maxLineSpan) }) {
-                            Text("Публикации автора", style = MaterialTheme.typography.titleLarge)
+                            Text(tr(UiText.interface_preview_007), style = MaterialTheme.typography.titleLarge)
                         }
                         items(8) { index ->
                             PostCard(PreviewPost.copy(id = "a$index"), {},
@@ -92,8 +92,8 @@ internal fun InterfacePreview(section: InterfaceSection, modifier: Modifier = Mo
                             Icon(Icons.Default.Settings, null, tint = colors.onSurface)
                         }
                         Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                            Text("Ваши подписки", style = MaterialTheme.typography.headlineSmall)
-                            Text("Автор примера", style = MaterialTheme.typography.titleMedium)
+                            Text(tr(UiText.interface_preview_008), style = MaterialTheme.typography.headlineSmall)
+                            Text(tr(UiText.interface_preview_009), style = MaterialTheme.typography.titleMedium)
                             LazyRow(userScrollEnabled = false, horizontalArrangement = Arrangement.spacedBy(o.density.horizontalGapDp.dp)) {
                                 items(4) { index -> PostCard(PreviewPost.copy(id = "t$index"), {},
                                     Modifier.focusProperties { canFocus = false }, previewFocused = index == 0) }
@@ -106,13 +106,57 @@ internal fun InterfacePreview(section: InterfaceSection, modifier: Modifier = Mo
         }
         val fontScale = LocalContext.current.resources.configuration.fontScale
         Text(when (section) {
-            InterfaceSection.Catalog -> "Прежние размеры и плотность сохраняются. Меню раскрывается поверх каталога, не меняя обложки."
-            InterfaceSection.Text -> "Название: ${o.textSize.titleSp} sp · подписи: ${o.metadataSp} sp.\nМасштаб шрифта ТВ: ${(fontScale * 100).toInt()}%. Для подписей рекомендуются 11–12 sp."
-            InterfaceSection.Focus -> "Превью не забирает пульт. Рекомендуемая рамка — 2 dp. Полное название появляется после остановки фокуса, только если оно обрезано."
-            InterfaceSection.Author -> "${o.authorHeader.label}. Шапка показана тем же компонентом, что и на странице автора."
-            InterfaceSection.Theme -> "Акцентные надписи светлее заливок для читаемости. Видео и его цвета не меняются."
-            InterfaceSection.Player -> "${o.playerLayout.label} · ${o.playerText.label.lowercase()} размер времени.\nПрименяется при открытии следующего видео. Это макет без воспроизведения."
+            InterfaceSection.Catalog -> tr(UiText.interface_preview_010)
+            InterfaceSection.Text -> tr(UiText.interface_preview_011, o.textSize.titleSp, o.metadataSp, (fontScale * 100).toInt())
+            InterfaceSection.Focus -> tr(UiText.focus_preview_hint)
+            InterfaceSection.Author -> tr(UiText.interface_preview_013, o.authorHeader.label)
+            InterfaceSection.Theme -> tr(UiText.interface_preview_014)
+            InterfaceSection.Player -> tr(UiText.interface_preview_015, o.playerLayout.label, o.playerText.label.lowercase())
         }, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+    }
+}
+
+/** Animate the real card between unfocused/focused; never take remote focus. */
+@Composable
+private fun FocusPreview(options: InterfaceOptions) {
+    var selected by remember { mutableStateOf(false) }
+    LaunchedEffect(options.focusZoom, options.animateFocus, options.focusColor, options.focusWidth) {
+        while (isActive) {
+            selected = false; delay(900)
+            selected = true; delay(1_800)
+        }
+    }
+    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(tr(if (selected) UiText.focus_preview_selected else UiText.focus_preview_idle),
+            style = MaterialTheme.typography.labelLarge, modifier = Modifier.testTag("interface_focus_phase"))
+        // Scale only to fit the demonstration area, reserving room for 102% zoom.
+        // Card layout, border, colors and animation remain the real implementation.
+        Layout(content = {
+            PostCard(PreviewPost, {}, Modifier.focusProperties { canFocus = false }
+                .testTag("interface_focus_preview"), previewFocused = selected)
+        }, modifier = Modifier.fillMaxWidth().weight(1f)) { children, constraints ->
+            val card = children.single().measure(Constraints(maxWidth = constraints.maxWidth))
+            val scale = minOf(1f, constraints.maxWidth / (card.width * 1.04f),
+                constraints.maxHeight / (card.height * 1.04f))
+            layout(constraints.maxWidth, constraints.maxHeight) {
+                card.placeWithLayer((constraints.maxWidth - card.width) / 2,
+                    (constraints.maxHeight - card.height) / 2) {
+                    scaleX = scale; scaleY = scale; transformOrigin = TransformOrigin.Center
+                }
+            }
+        }
+        if (options.fullTitle) Box(Modifier.fillMaxWidth().height(48.dp)) {
+            if (selected) Text(PreviewPost.title, style = MaterialTheme.typography.bodySmall,
+                maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.testTag("interface_focus_full_title"))
+        }
+        Text(tr(UiText.focus_preview_scale, 100, (options.focusScale(true) * 100).roundToInt()),
+            style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("interface_focus_scale"))
+        Text(tr(UiText.focus_preview_transition, options.focusAnimationMillis),
+            style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("interface_focus_duration"))
+        Text(tr(UiText.focus_preview_outline, options.focusColor.label, options.focusWidth),
+            style = MaterialTheme.typography.bodySmall)
     }
 }
 
@@ -138,11 +182,11 @@ private fun ScaledPreview(tag: String, content: @Composable () -> Unit) {
 private fun PlayerPanelPreview(o: InterfaceOptions) {
     val colors = MaterialTheme.colorScheme
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        Text("Тестовое видео", style = MaterialTheme.typography.titleLarge.copy(fontSize = PlayerPanelMetrics.TitleSp.sp),
+        Text(tr(UiText.interface_preview_016), style = MaterialTheme.typography.titleLarge.copy(fontSize = PlayerPanelMetrics.TitleSp.sp),
             modifier = Modifier.padding(start = 48.dp, top = 32.dp))
         Column(Modifier.align(Alignment.TopEnd).padding(end = 48.dp, top = 32.dp), horizontalAlignment = Alignment.End) {
             if (o.playerClock) Text("21:30", fontSize = PlayerPanelMetrics.ClockSp.sp)
-            if (o.playerEndTime) Text("Окончание ≈ 22:15", fontSize = PlayerPanelMetrics.EndTimeSp.sp, color = colors.onSurfaceVariant)
+            if (o.playerEndTime) Text(tr(UiText.interface_preview_017), fontSize = PlayerPanelMetrics.EndTimeSp.sp, color = colors.onSurfaceVariant)
         }
         Row(Modifier.align(if (o.playerLayout == PlayerPanelLayout.Lower) Alignment.BottomCenter else Alignment.Center)
             .then(if (o.playerLayout == PlayerPanelLayout.Lower) Modifier.padding(bottom = (PlayerPanelMetrics.LowerTransportMarginDp + 24).dp) else Modifier),
@@ -175,13 +219,13 @@ private fun PlayerPanelPreview(o: InterfaceOptions) {
             .fillMaxWidth().height(60.dp).background(colors.surface, RoundedCornerShape(16.dp)).padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("12:34 · 45:00", fontSize = o.playerText.timeSp.sp)
-            Text("Качество: Авто  ⚙", fontSize = 14.sp)
+            Text(tr(UiText.interface_preview_018), fontSize = 14.sp)
         }
     }
 }
 
-private val PreviewBlog = Blog("author", "Описание канала", "Автор примера", null, null, 0, 178, true, false, null)
-private val PreviewPost = Post("preview", 0, "Длинное название видео: проверяем удобство чтения с дивана",
-    "author", "Автор с длинным именем", 1_700_000_000, true, false, false, false, null,
+private val PreviewBlog get() = Blog("author", tr(UiText.interface_preview_019), tr(UiText.interface_preview_009), null, null, 0, 178, true, false, null)
+private val PreviewPost get() = Post("preview", 0, tr(UiText.interface_preview_020),
+    "author", tr(UiText.interface_preview_021), 1_700_000_000, true, false, false, false, null,
     listOf(ContentBlock.Video("preview", null, null, 754, 1920, 1080, null, null, null,
         listOf(VideoSource(VideoSource.Kind.Progressive, "about:blank", 1080, "preview")), true)), emptyList())

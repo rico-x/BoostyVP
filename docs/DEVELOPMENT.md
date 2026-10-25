@@ -1,29 +1,56 @@
-# Разработка и проверка
+# Разработка и проверки
 
-## Сборка
+[English](DEVELOPMENT.en.md) · [Документация](README.md)
 
-Сборка и тесты — в Docker по [build-support/README.md](../build-support/README.md):
-`linux/amd64`, JDK 21, Android SDK 35, Gradle из wrapper. Проверка того же
-набора, что и в CI:
+## Среда и сборка
 
-```bash
-./gradlew testDebugUnitTest :core:domain:test :app:assembleDebug assembleDebugAndroidTest
+Код/история — локально. Сборка в Docker `linux/amd64`: JDK 21, Gradle 8.13,
+AGP 8.13.2, compileSdk 36, targetSdk 35, minSdk 23, Java 11 bytecode.
+[Команды и кеш](../build-support/README.md). Не запускайте два Gradle одновременно
+на одном checkout/кеше. На Apple Silicon Android SDK/JVM работают под эмуляцией.
+
+```sh
+./gradlew testDebugUnitTest :core:domain:test :core:localization:test \
+  :app:assembleDebug assembleDebugAndroidTest :app:assembleRelease :app:lintDebug \
+  --max-workers=1 --no-watch-fs --console=plain
+node --test build-support/*.test.mjs
+node build-support/test-pairing-brand.mjs
+node build-support/check-docs.mjs
+node build-support/build-pages.mjs
 ```
 
-Версия сборки без параметров — сегодняшняя `ГГГГ.ММ.ДД.0`, она не выпуск.
-Для release-сборки на ТВ задайте следующую версию явно:
-`-Pboostyvp.version=$(node build-support/release-tools.mjs next-version)`.
-Правила версий и выпуска — в [RELEASING.md](RELEASING.md).
+Без версии получается сегодняшняя `.0`, не публичный выпуск. Для локального
+release задавайте явную `-Pboostyvp.version=YYYY.MM.DD.N` с подходящим versionCode.
+Публичный номер/тег назначает workflow: [публикация](RELEASING.md).
+Версии зависимостей/границы обновлений — в [DEPENDENCIES](DEPENDENCIES.md).
 
-## Проверки
+## Проверка на устройстве
 
-- Модульные тесты и инструменты выпуска (`node --test build-support/*.test.mjs`).
-- Инструментальные тесты на реальном ТВ; обязательный набор перечислен в
-  [ROADMAP](ROADMAP.md#процесс-качество-и-безопасность). На CI они только компилируются.
-- Подписанный release ставится поверх текущего тем же ключом; вход, настройки
-  и позиции должны сохраниться.
-- ClamAV проверяет APK в каждом прогоне CI; перед выпуском — ещё и VirusTotal.
-- [Проверки плеера и причины исправления управления](player-input.md).
+CI выполняет JVM/Node-проверки, собирает test APK и пять ABI-вариантов;
+инструментальные тесты на runner **не исполняются**. Разрешение владельца
+на реальный ТВ требуется отдельно. Проверяйте debug-пакет с синтетическими
+данными; не удаляйте production-библиотеку ради проверки приватности.
+
+Регрессии: HomeRowFocus, PlayerReturn, NewFeedFocus, ContinueWatching,
+HistoryActions, PostReader, BilingualLibraryUi, SettingsFileExport,
+SettingsExportDialog, VideoCommentsNavigation, PlayerControls,
+RemoteSeekDevice, PlaybackReliabilityDevice и миграции core/data.
+Полные имена — в `src/androidTest` соответствующего модуля.
+
+```sh
+./gradlew :app:connectedDebugAndroidTest :feature:player:connectedDebugAndroidTest \
+  :core:data:connectedDebugAndroidTest
+```
+
+Для опциональных Chrome/live/update-fixture сценариев нужно явное включение;
+их пропуск не считать PASS. После изолированных тестов подписанный release
+обновляется `install -r` тем же пакетом и ключом, без clear/uninstall/downgrade.
+Сверьте вход, библиотеку, настройки и позицию на настоящем видео. Указывайте
+модель/Android/ABI, тесты, пропуски и ограничения в датированном отчёте.
+[Текущие результаты](RELEASE_READINESS.md), [плеер](player-input.md).
+
+Согласуйте debug-ключ между контейнерами: иначе обновление debug-пакета
+получит ошибку подписи. Ключи, пароли и артефакты пользователя хранятся вне Git.
 
 ## Фаззинг
 
@@ -53,27 +80,34 @@ JAZZER_FUZZ=1 ./gradlew :core:auth:testDebugUnitTest --tests 'io.github.ricox.bo
 (workflow «OpenSSF Scorecard»). Готовые ответы для анкеты Best Practices и что
 мешает уровню passing — в [OPENSSF_BEST_PRACTICES.md](OPENSSF_BEST_PRACTICES.md).
 
-## Изменения в main
+## Работа с main
 
-`main` защищён: изменения — только через pull request со squash-слиянием, после
-зелёных проверок «Tests and five APK variants», CodeQL и Dependency review.
-Сообщение коммита — одна строка. Подробные правила для агентов — в
-[AGENTS.md](../AGENTS.md).
+Обычный путь — PR, обязательные checks и squash merge. Прямой локальный перенос
+возможен только по отдельному явному указанию владельца. Не переписывайте
+чужую историю; при работе параллельно учитывайте изменения `origin/main`.
+Push/PR/выпуск не следуют автоматически из локального коммита: [AGENTS](../AGENTS.md).
+Существенную помощь LLM отмечайте: [AI_ASSISTANCE](AI_ASSISTANCE.md).
 
-Ключ подписи и секреты хранятся вне репозитория. Непроверенный APK нельзя
-выдавать за стабильный выпуск; выпуск делает только workflow «Build and publish».
+## Скриншоты
 
-## Скриншоты документации
+Оба комплекта: `docs/screenshots/ru` и `docs/screenshots/en`, WebP **1920×1080**.
+Снимайте настоящий текущий интерфейс, переводя язык штатной настройкой.
+Публикации/имена авторов не переводятся. Не дорисовывайте интерфейс и не используйте
+старый кадр как доказательство новой функции. Версию/дату/источник фиксируйте
+в [манифесте скриншотов](screenshots/manifest.json).
 
-Снимаются на ТВ с BoostyVP и реальными подписками владельца — так интерфейс
-выглядит живым. В кадр не должны попадать данные аккаунта (вход, профиль,
-телефон), QR-код сопряжения и адреса видео.
+Владелец разрешил документационные снимки с его живыми подписками. В кадр
+не должны попасть собственный профиль, телефон/e-mail, вход, QR/адрес сопряжения,
+токены или приватные видеоссылки. Не включайте чувствительные тексты комментариев.
+Остальные пользовательские материалы держите вне Git. После съёмки восстановите
+язык, настройки и затронутую позицию, остановите воспроизведение.
 
-```bash
-adb exec-out screencap -p > home.png
-cwebp -q 80 -m 6 -metadata none home.png -o docs/screenshots/home.webp
+```sh
+adb exec-out screencap -p > /tmp/boostyvp-home.png
+cwebp -quiet -q 85 -m 6 -metadata none /tmp/boostyvp-home.png \
+  -o docs/screenshots/ru/home.webp
 ```
 
-Имена файлов используются в [руководстве](USER_GUIDE.md), README и на сайте
-(`build-support/build-pages.mjs`): `home`, `new`, `author`, `player`, `next-up`,
-`player-settings`, `interface`.
+Набор/подписи/права и SHA-256 перечислены в [screenshots](screenshots/README.md).
+Обновляйте README, руководство и сайт согласованно; `check-docs.mjs` проверяет
+локальные ссылки, якоря, языковые пары и размеры изображений.

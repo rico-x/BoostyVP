@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.core.ui.component
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -103,7 +106,7 @@ fun ScreenHeading(title: String, subtitle: String? = null, modifier: Modifier = 
 
 @Composable
 fun BackButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    TvActionButton("Назад", onClick, modifier, icon = Icons.AutoMirrored.Filled.ArrowBack)
+    TvActionButton(tr(UiText.language_settings_dialog_005), onClick, modifier, icon = Icons.AutoMirrored.Filled.ArrowBack)
 }
 
 @Composable

@@ -43,16 +43,17 @@ jobs:
           cache: gradle
       - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
       - name: Install SDK
-        run: bash build-support/install-sdk.sh 'platforms;android-35' 'build-tools;35.0.0'
+        run: bash build-support/install-sdk.sh 'platforms;android-36' 'build-tools;35.0.0'
       - name: Verify browser handoff and release tooling
         run: |
           node build-support/test-pairing-brand.mjs
-          node --test build-support/release-tools.test.mjs build-support/virustotal-scan.test.mjs build-support/build-pages.test.mjs
+          node --test build-support/*.test.mjs
+          node build-support/check-docs.mjs
           for script in build-support/sign-release.sh build-support/clamav-scan.sh; do bash -n "$script"; done
           shellcheck build-support/sign-release.sh build-support/clamav-scan.sh
           node build-support/build-pages.mjs build
       - name: Unit tests and all instrumentation APKs
-        run: ./gradlew testDebugUnitTest :core:domain:test :app:assembleDebug assembleDebugAndroidTest --no-daemon --max-workers=2 --no-watch-fs --console=plain
+        run: ./gradlew testDebugUnitTest :core:domain:test :core:localization:test :app:assembleDebug assembleDebugAndroidTest --no-daemon --max-workers=2 --no-watch-fs --console=plain
       - name: Build and inspect architecture variants
         run: |
           ./gradlew :app:assembleRelease -PsplitApks=true --no-daemon --max-workers=2 --no-watch-fs --console=plain

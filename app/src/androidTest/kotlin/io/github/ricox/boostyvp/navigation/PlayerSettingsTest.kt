@@ -12,6 +12,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.pressKey
@@ -22,6 +23,7 @@ import io.github.ricox.boostyvp.core.ui.player.EndAction
 import io.github.ricox.boostyvp.core.ui.player.PlayerOptions
 import io.github.ricox.boostyvp.core.ui.player.PlayerPreferences
 import io.github.ricox.boostyvp.core.ui.player.PlayerSettingsDialog
+import io.github.ricox.boostyvp.core.ui.player.VideoScale
 import io.github.ricox.boostyvp.core.ui.theme.BoostyVPTheme
 import io.github.ricox.boostyvp.feature.home.HomeLayout
 import io.github.ricox.boostyvp.feature.home.HomeUiState
@@ -66,8 +68,12 @@ class PlayerSettingsTest {
         activate("Панель управления: 4 с")
         activate("Запоминать скорость: да")
         compose.onNodeWithText("Назад: 15 с").assertIsDisplayed()
+        // Persistence happens while the window is still open, not on Close/Back.
+        compose.runOnIdle {
+            assertEquals(PlayerOptions(15, 60, 8, false), PlayerPreferences(context).load())
+        }
         device.takeScreenshot(File(context.getExternalFilesDir(null), "player-settings-style.png"))
-        activate("Готово")
+        activate("Закрыть")
         compose.runOnIdle {
             assertEquals(PlayerOptions(15, 60, 8, false), PlayerPreferences(context).load())
         }
@@ -87,6 +93,28 @@ class PlayerSettingsTest {
         preferences.saveSpeed(2f)
         assertEquals(1f, PlayerPreferences(context).playbackSpeed(), 0f)
         assertFalse(PlayerPreferences(context).load().rememberSpeed)
+    }
+
+    @Test fun removingTheSettingsWindowWithoutConfirmingDoesNotLoseTheChange() {
+        val preferences = PlayerPreferences(context)
+        var open by mutableStateOf(true)
+        compose.setContent {
+            BoostyVPTheme {
+                var options by remember { mutableStateOf(preferences.load()) }
+                if (open) PlayerSettingsDialog(options, {
+                    options = it; preferences.save(it)
+                }, { open = false })
+            }
+        }
+        activate("Назад: 10 с")
+        compose.onNodeWithText("Назад: 15 с").assertIsDisplayed()
+        assertEquals(15, PlayerPreferences(context).load().seekBackSeconds)
+        // Simulate disposal/recreation without pressing a closing action.
+        compose.runOnIdle { open = false }
+        compose.onNodeWithTag("player_settings_close").assertDoesNotExist()
+        compose.runOnIdle { open = true }
+        compose.onNodeWithText("Назад: 15 с").assertIsDisplayed()
+        assertEquals(15, PlayerPreferences(context).load().seekBackSeconds)
     }
 
     @Test fun newPlaybackSettingsAreChangedWithRemoteAndPersist() {
@@ -109,7 +137,7 @@ class PlayerSettingsTest {
             .assertIsDisplayed()
         device.takeScreenshot(File(context.getExternalFilesDir(null), "player-settings-playback.png"))
         // The last rows are below the fold of a 540 dp screen; focus scrolls them in.
-        activate("Готово")
+        activate("Закрыть")
         compose.runOnIdle {
             val saved = PlayerPreferences(context).load()
             assertEquals(true, saved.speedPerAuthor)
@@ -151,5 +179,28 @@ class PlayerSettingsTest {
         compose.onNodeWithText(label).performSemanticsAction(SemanticsActions.RequestFocus) { it() }
         compose.onNodeWithText(label).performKeyInput { pressKey(Key.DirectionCenter) }
         compose.waitForIdle()
+    }
+
+    @Test fun remoteMappingsExitAndGeometryPersistWithIndependentOldSettings() {
+        val preferences = PlayerPreferences(context)
+        preferences.save(PlayerOptions(seekBackSeconds = 15, sleepTimerMinutes = 60))
+        compose.setContent {
+            BoostyVPTheme {
+                var options by remember { mutableStateOf(preferences.load()) }
+                PlayerSettingsDialog(options, { options = it; preferences.save(it) }, {})
+            }
+        }
+        activate("CH±: не переназначать")
+        activate("FF/REW: перемотка")
+        activate("Цифры 0–9: не переназначать")
+        activate("Двойное «Назад» для выхода: нет")
+        activate("Масштаб видео: Вписать")
+        compose.onNodeWithText("Масштаб видео: По ширине").assertIsDisplayed()
+        activate("Закрыть")
+        compose.runOnIdle {
+            assertEquals(PlayerOptions(seekBackSeconds = 15, sleepTimerMinutes = 60,
+                channelVideoNavigation = true, transportVideoNavigation = true, digitSeek = true,
+                doubleBackExit = true, videoScale = VideoScale.Width), PlayerPreferences(context).load())
+        }
     }
 }

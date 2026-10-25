@@ -2,6 +2,7 @@ package io.github.ricox.boostyvp.feature.player
 
 import android.util.Log
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.dash.DashMediaSource
@@ -10,6 +11,7 @@ import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import io.github.ricox.boostyvp.core.model.ContentBlock
 import io.github.ricox.boostyvp.core.model.VideoSource
+import io.github.ricox.boostyvp.core.network.BoostyWebHeaders
 
 private const val TAG = "MediaSourceFactory"
 
@@ -23,20 +25,11 @@ private const val TAG = "MediaSourceFactory"
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 fun boostyDataSourceFactory(): DataSource.Factory =
     DefaultHttpDataSource.Factory()
-        .setUserAgent(WEB_USER_AGENT)
-        .setDefaultRequestProperties(
-            mapOf(
-                "Referer" to "https://boosty.to/",
-                "Origin" to "https://boosty.to",
-            ),
-        )
+        .setUserAgent(BoostyWebHeaders.USER_AGENT)
+        .setDefaultRequestProperties(BoostyWebHeaders.mediaRequestProperties)
         .setAllowCrossProtocolRedirects(true)
         .setConnectTimeoutMs(20_000)
         .setReadTimeoutMs(30_000)
-
-private const val WEB_USER_AGENT =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
 /**
  * Builds a media source for [source], choosing the right ExoPlayer source type.
@@ -49,8 +42,10 @@ private const val WEB_USER_AGENT =
 fun buildMediaSource(
     source: VideoSource,
     dataSourceFactory: DataSource.Factory = boostyDataSourceFactory(),
+    metadata: MediaMetadata = MediaMetadata.EMPTY,
+    mediaId: String = "",
 ): MediaSource {
-    val item = MediaItem.fromUri(source.url)
+    val item = MediaItem.Builder().setUri(source.url).setMediaId(mediaId).setMediaMetadata(metadata).build()
     return when (source.kind) {
         VideoSource.Kind.Dash ->
             DashMediaSource.Factory(dataSourceFactory).createMediaSource(item)

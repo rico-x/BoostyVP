@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.feature.player
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import android.content.Context
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -66,7 +69,7 @@ internal class SeekIndicator(context: Context) : LinearLayout(context) {
             else formatSeekTime(preview.targetMs)
         bar.visibility = if (known) View.VISIBLE else View.GONE
         if (known) bar.progress = (preview.targetMs * PROGRESS_MAX / preview.durationMs).toInt()
-        contentDescription = "Перемотка ${delta.text.drop(arrows.length).trim()}, ${time.text}"
+        contentDescription = tr(UiText.seek_indicator_001, delta.text.drop(arrows.length).trim(), time.text)
         visibility = View.VISIBLE
     }
 

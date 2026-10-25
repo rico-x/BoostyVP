@@ -59,7 +59,7 @@ test('every download link is the release\'s own asset, with its VirusTotal repor
   const reports = [...html.matchAll(/href="([^"]+)"/g)].map(m => m[1]).filter(h => h.includes('virustotal'));
   assert.equal(reports.length, 5);
   assert.ok(reports.every(h => /^https:\/\/www\.virustotal\.com\/gui\/file\/[a-f0-9]{64}$/.test(h)), `${reports}`);
-  assert.ok(html.includes('src="screenshots/home.webp"'));
+  assert.ok(html.includes('src="screenshots/ru/home.webp"'));
   assert.ok(!html.includes('0.0.3'));
 });
 
@@ -73,4 +73,20 @@ test('without a release the page has no download links at all', () => {
 test('checksums must be well formed', () => {
   assert.throws(() => parseChecksums('zzz  boostyvp-v2026.10.24.1-x86.apk\n'), /Malformed/);
   assert.throws(() => parseChecksums(`${'a'.repeat(64)}  ../private.apk\n`), /Malformed/);
+});
+
+
+test('English uses its own guide, screenshot locale and reciprocal language switch', () => {
+  const chosen = newestRelease([release('2026.10.24.2', '2026-10-24T12:00:00Z')]);
+  const html = render(template, chosen, parseChecksums(sums('2026.10.24.2')), ['home.webp', 'next-up.webp'], 'en');
+  assert.ok(html.includes('<html lang="en">'));
+  assert.ok(html.includes('docs/USER_GUIDE.en.md'));
+  assert.ok(html.includes('src="../screenshots/en/home.webp"'));
+  assert.ok(html.includes('Next up — demonstration data'));
+  assert.ok(html.includes('href="../" lang="ru"'));
+  assert.equal(linksToCheck(html).filter(link => link.endsWith('.apk')).length, 5);
+  const empty = render(template, null, {}, [], 'en');
+  assert.ok(empty.includes('No releases yet.'));
+  assert.equal(linksToCheck(empty).length, 0);
+  assert.ok(!empty.includes('href="#screens"'));
 });

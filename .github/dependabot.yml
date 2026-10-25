@@ -11,5 +11,22 @@ updates:
   - package-ecosystem: gradle
     directory: /
     schedule:
-      interval: monthly
-    open-pull-requests-limit: 3
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Moscow
+    open-pull-requests-limit: 10
+    # Keep version-coupled families together; leave major migrations separate.
+    groups:
+      kotlin-toolchain:
+        patterns: ['org.jetbrains.kotlin*', 'com.google.devtools.ksp*']
+        update-types: [minor, patch]
+      media3:
+        patterns: ['androidx.media3:*']
+        update-types: [minor, patch]
+      networking:
+        patterns: ['com.squareup.okhttp3:*', 'com.squareup.retrofit2:*']
+        update-types: [minor, patch]
+      compose:
+        patterns: ['androidx.compose*']
+        update-types: [minor, patch]

@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.feature.player
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import io.github.ricox.boostyvp.core.model.ContentBlock
 
 internal sealed interface ReaderPart {
@@ -32,8 +35,8 @@ internal fun readerParts(blocks: List<ContentBlock>): List<ReaderPart> = buildLi
                 block.url, if ((block.width ?: 0) > 0 && (block.height ?: 0) > 0)
                     (block.width!!.toFloat() / block.height!!).coerceIn(0.5f, 3f) else 16f / 9f))
         }
-        is ContentBlock.File -> { flush(); add(ReaderPart.Paragraph("Файл: ${block.title ?: "вложение"}")) }
-        is ContentBlock.Audio -> { flush(); add(ReaderPart.Paragraph("Аудио: ${block.title ?: "аудиозапись"}")) }
+        is ContentBlock.File -> { flush(); add(ReaderPart.Paragraph(tr(UiText.reader_parts_002, block.title ?: tr(UiText.reader_parts_001)))) }
+        is ContentBlock.Audio -> { flush(); add(ReaderPart.Paragraph(tr(UiText.reader_parts_004, block.title ?: tr(UiText.reader_parts_003)))) }
         else -> Unit
     }
     flush()

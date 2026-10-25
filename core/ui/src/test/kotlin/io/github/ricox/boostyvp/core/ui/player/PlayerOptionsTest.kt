@@ -4,6 +4,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PlayerOptionsTest {
+    private val language = io.github.ricox.boostyvp.localization.Language.selected
+    @org.junit.Before fun chooseRussian() { io.github.ricox.boostyvp.localization.Language.selected = "ru" }
+    @org.junit.After fun restoreLanguage() { io.github.ricox.boostyvp.localization.Language.selected = language }
     @Test fun defaultsPreserveExistingPlaybackBehaviour() {
         assertEquals(10, PlayerOptions().seekBackSeconds)
         assertEquals(30, PlayerOptions().seekForwardSeconds)
@@ -49,5 +52,21 @@ class PlayerOptionsTest {
         assertEquals(EndAction.Next, EndAction.entries.nextItem(EndAction.Stop))
         assertEquals(EndAction.Stop, EndAction.entries.nextItem(EndAction.Close))
         assertEquals(listOf("выкл", "30 мин", "1 ч", "2 ч", "3 ч"), PlayerOptions.SLEEP_TIMES.map(PlayerOptions::sleepLabel))
+    }
+
+    @Test fun remoteMappingsAndExitConfirmationAreOptIn() {
+        val defaults = PlayerOptions()
+        assertEquals(false, defaults.channelVideoNavigation)
+        assertEquals(false, defaults.transportVideoNavigation)
+        assertEquals(false, defaults.digitSeek)
+        assertEquals(false, defaults.doubleBackExit)
+        assertEquals(VideoScale.Fit, defaults.videoScale)
+    }
+
+    @Test fun geometryChoicesPersistByStableIdsWithSafeFallback() {
+        VideoScale.entries.forEach { assertEquals(it, VideoScale.fromId(it.id)) }
+        assertEquals(VideoScale.Fit, VideoScale.fromId("unknown"))
+        assertEquals(VideoScale.Fit, VideoScale.fromId(null))
+        assertEquals(VideoScale.Fit, VideoScale.entries.nextItem(VideoScale.Crop))
     }
 }

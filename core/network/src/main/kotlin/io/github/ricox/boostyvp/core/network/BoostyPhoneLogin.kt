@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.core.network
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import io.github.ricox.boostyvp.core.domain.auth.PhoneChallenge
 import io.github.ricox.boostyvp.core.domain.auth.PhoneLogin
 import io.github.ricox.boostyvp.core.domain.auth.PhoneLoginException
@@ -18,7 +21,7 @@ class BoostyPhoneLogin @Inject constructor(
     override suspend fun requestCode(phone: String, deviceId: String): PhoneChallenge =
         phoneRequest {
             val result = api.sendPhoneCode(phone = phone, deviceId = deviceId).data.phoneCode
-            if (result.code.isBlank()) throw PhoneLoginException("Boosty не вернул подтверждение отправки кода. Попробуйте ещё раз.")
+            if (result.code.isBlank()) throw PhoneLoginException(tr(UiText.boosty_phone_login_001))
             PhoneChallenge(result.code, result.sentTransport)
         }
 
@@ -26,7 +29,7 @@ class BoostyPhoneLogin @Inject constructor(
         phoneRequest {
             val result = api.confirmPhoneCode(phone = phone, code = challenge, smsCode = smsCode, deviceId = deviceId)
             if (result.accessToken.isBlank() || result.refreshToken.isBlank() || result.expiresIn <= 0) {
-                throw PhoneLoginException("Boosty вернул неполную сессию. Запросите новый код.")
+                throw PhoneLoginException(tr(UiText.boosty_phone_login_002))
             }
             Session(result.accessToken, result.refreshToken,
                 System.currentTimeMillis() / 1000 + result.expiresIn, deviceId)
@@ -41,12 +44,12 @@ class BoostyPhoneLogin @Inject constructor(
                 ?.let { (it as? JsonPrimitive)?.content }
         }.getOrNull()
         throw PhoneLoginException(when {
-            error == "invalid_check" -> "Boosty требует CAPTCHA. Для этого входа используйте QR и браузер."
-            error == "denied_phone_prefix" -> "Boosty не поддерживает вход с этим кодом страны."
-            error == "denied_phone_registration" -> "Привяжите этот номер к вашему аккаунту на сайте Boosty."
-            error == "sms_gate_ratelimit" || e.code() == 429 -> "Слишком много запросов. Подождите несколько минут."
-            e.code() == 400 || e.code() == 401 -> "Номер или код не принят. Проверьте данные и попробуйте снова."
-            else -> "Сервис входа Boosty временно недоступен. Попробуйте позже."
+            error == "invalid_check" -> tr(UiText.boosty_phone_login_003)
+            error == "denied_phone_prefix" -> tr(UiText.boosty_phone_login_004)
+            error == "denied_phone_registration" -> tr(UiText.boosty_phone_login_005)
+            error == "sms_gate_ratelimit" || e.code() == 429 -> tr(UiText.boosty_phone_login_006)
+            e.code() == 400 || e.code() == 401 -> tr(UiText.boosty_phone_login_007)
+            else -> tr(UiText.boosty_phone_login_008)
         })
     }
 }

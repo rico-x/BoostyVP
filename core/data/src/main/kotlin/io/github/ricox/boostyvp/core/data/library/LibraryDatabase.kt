@@ -19,13 +19,48 @@ import kotlinx.coroutines.flow.Flow
  * Versioned with exported schemas in `core/data/schemas`; a change to any
  * entity needs a new version and a migration, never a destructive rebuild.
  */
-@Database(entities = [PlaybackProgressEntity::class, WatchHistoryEntity::class], version = 2, exportSchema = true)
+@Database(entities = [PlaybackProgressEntity::class, WatchHistoryEntity::class,
+    SavedPostEntity::class, FavoriteAuthorEntity::class, WatchedPostEntity::class,
+    FavoritePostEntity::class], version = 4, exportSchema = true)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun playbackProgress(): PlaybackProgressDao
     abstract fun watchHistory(): WatchHistoryDao
+    abstract fun personalLibrary(): PersonalLibraryDao
 
     companion object {
         const val NAME = "library.db"
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""CREATE TABLE IF NOT EXISTS `favorite_posts` (
+                    `account` TEXT NOT NULL, `postId` TEXT NOT NULL, `blogUrl` TEXT NOT NULL,
+                    `title` TEXT NOT NULL, `blogTitle` TEXT NOT NULL, `publishedAt` INTEGER NOT NULL,
+                    `previewUrl` TEXT, `hasVideo` INTEGER NOT NULL, `videoId` TEXT NOT NULL,
+                    `durationSeconds` INTEGER NOT NULL, `addedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`account`, `postId`))""")
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""CREATE TABLE IF NOT EXISTS `watch_later` (
+                    `account` TEXT NOT NULL, `postId` TEXT NOT NULL, `blogUrl` TEXT NOT NULL,
+                    `title` TEXT NOT NULL, `blogTitle` TEXT NOT NULL, `publishedAt` INTEGER NOT NULL,
+                    `previewUrl` TEXT, `hasVideo` INTEGER NOT NULL, `videoId` TEXT NOT NULL,
+                    `durationSeconds` INTEGER NOT NULL, `addedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`account`, `postId`))""")
+                db.execSQL("""CREATE TABLE IF NOT EXISTS `favorite_authors` (
+                    `account` TEXT NOT NULL, `blogUrl` TEXT NOT NULL, `title` TEXT NOT NULL,
+                    `addedAt` INTEGER NOT NULL, PRIMARY KEY(`account`, `blogUrl`))""")
+                db.execSQL("""CREATE TABLE IF NOT EXISTS `watched_posts` (
+                    `account` TEXT NOT NULL, `postId` TEXT NOT NULL, `watched` INTEGER NOT NULL,
+                    PRIMARY KEY(`account`, `postId`))""")
+                // A short clip must not be marked watched just because it became READY.
+                db.execSQL("""INSERT OR IGNORE INTO watched_posts (account, postId, watched)
+                    SELECT account, postId, 1 FROM watch_history WHERE durationMs > 0
+                    AND positionMs >= durationMs - MIN(30000, durationMs / 20)""")
+            }
+        }
 
         /** Add history without changing even one existing resume point. Room migrates atomically. */
         val MIGRATION_1_2 = object : Migration(1, 2) {

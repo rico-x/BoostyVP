@@ -1,19 +1,23 @@
 ## Русский
 
-- История по аккаунтам и действия карточки по долгому OK/Menu.
-- Настраиваемый каталог, лента «Новое», тексты и свёрнутые комментарии.
-- Нативный плеер с удобной перемоткой, восстановлением и сохранением предпочтений.
-- ARMv7, ARM64, x86, x86_64 и универсальный APK; документация и сайт проекта.
+- Ленты подписок и «Новое», история по аккаунтам, избранное, «Смотреть позже», поиск и очередь.
+- Тексты, подробности и комментарии к видео без запуска воспроизведения.
+- Нативный плеер с перемоткой, качеством, скоростью по авторам, восстановлением и сохранением позиции в фоне.
+- Настраиваемые карточки и компактное меню; немедленное сохранение и управление приватностью.
+- Перенос настроек через файловый менеджер/браузер, каналы Android TV/Projectivy.
+- Русский и английский интерфейсы, актуальные руководства и скриншоты; пять архитектурных вариантов APK.
 - Версия — дата и номер выпуска за день; каждый файл проверен ClamAV и VirusTotal, приложен файл происхождения SLSA.
 
-Ранняя экспериментальная версия. MIT — только для собственных изменений форка; унаследованный код не перелицензирован. См. LICENSE.md и SECURITY.md.
+Первый выпуск. MIT — только для оригинального вклада форка; унаследованный код не перелицензирован. См. LICENSE.md и SECURITY.md.
 
 ## English
 
-- Per-account watch history and remote-friendly card actions.
-- Customizable catalog, subscription feed, text posts and collapsible comments.
-- Native playback with accelerated seeking, recovery and saved preferences.
-- ARMv7, ARM64, x86, x86_64 and universal APKs, documentation and website.
+- Subscription/New feeds, per-account history, favorites, Watch later, search and queue.
+- Text posts, details and video comments without starting playback.
+- Native seeking, quality, per-creator speed, recovery and background position preservation.
+- Configurable cards/compact menus, immediate settings persistence and privacy controls.
+- File-manager/browser settings transfer and Android TV/Projectivy channels.
+- Russian/English interfaces, current guides/screenshots and five APK architecture variants.
 - Versions are the release date and that day's number; every file is scanned by ClamAV and VirusTotal and ships with SLSA provenance.
 
-Early experimental release. MIT covers original fork contributions only; inherited code has not been relicensed. See LICENSE.md and SECURITY.md.
+First release. MIT covers original fork contributions only; inherited code has not been relicensed. See LICENSE.en.md and SECURITY.en.md.

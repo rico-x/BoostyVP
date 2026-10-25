@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "io.github.ricox.boostyvp.core.ui"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 23
@@ -34,6 +34,7 @@ android {
 
 dependencies {
     api(project(":core:model"))
+    api(project(":core:localization"))
     implementation(libs.androidx.paging.runtime)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
@@ -45,6 +46,7 @@ dependencies {
     api(libs.androidx.tv.material)
     api(libs.androidx.compose.material.icons)
     api(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
     debugImplementation(libs.androidx.compose.ui.tooling)
     implementation(libs.androidx.compose.ui.tooling.preview)
 }

@@ -1,6 +1,7 @@
 package io.github.ricox.boostyvp.core.data.repository
 
 import io.github.ricox.boostyvp.core.domain.repository.FeedRepository
+import io.github.ricox.boostyvp.core.domain.repository.CatalogIndex
 import io.github.ricox.boostyvp.core.model.Page
 import io.github.ricox.boostyvp.core.model.Post
 import io.github.ricox.boostyvp.core.model.Subscription
@@ -15,13 +16,16 @@ import javax.inject.Singleton
 class DefaultFeedRepository @Inject constructor(
     private val api: BoostyApi,
     private val json: Json,
+    private val catalog: CatalogIndex = CatalogIndex(),
 ) : FeedRepository {
     /** Feed posts name their blog through the author; one without it cannot be opened, so it is dropped. */
-    override suspend fun feedPage(cursor: String?): Page<Post> =
-        publicationPage(cursor) { next ->
+    override suspend fun feedPage(cursor: String?): Page<Post> {
+        val owner = catalog.account
+        return publicationPage(cursor) { next ->
             val page = api.getFeed(offset = next).toPostPage(json)
             page.copy(items = page.items.filter { it.blogUrl.isNotBlank() })
-        }
+        }.also { catalog.record(owner, it.items) }
+    }
 
     override suspend fun subscriptions(limit: Int): List<Subscription> {
         require(limit > 0)

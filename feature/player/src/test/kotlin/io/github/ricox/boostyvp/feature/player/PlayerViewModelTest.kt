@@ -238,4 +238,49 @@ class PlayerViewModelTest {
         assertEquals(0L, (model.state.value as PlayerUiState.Ready).startPositionMs)
         coVerify(exactly = 0) { progress.clear(any(), any()) }
     }
+
+    @Test fun `previous video crosses pages and skips text locked and processing posts`() = runTest(dispatcher) {
+        val text = post("text").copy(blocks = listOf(ContentBlock.Text("Article", null)))
+        coEvery { blogs.postsPage("blog", null) } returns Page(listOf(post("first"), post("previous"), text), "p2", false)
+        coEvery { blogs.postsPage("blog", "p2") } returns Page(listOf(post("locked").copy(hasAccess = false),
+            post("processing").copy(isWaitingVideo = true), post("current")), null, true)
+        coEvery { blogs.post("blog", "current") } returns post("current")
+        val model = PlayerViewModel(blogs, progress)
+        model.load("blog", "current"); advanceUntilIdle()
+        val result = model.adjacentVideo(model.state.value as PlayerUiState.Ready, VideoDirection.Previous)
+        assertEquals("previous", (result as AdjacentVideoResult.Found).post.id)
+    }
+
+    @Test fun `first video has a boundary not a network error`() = runTest(dispatcher) {
+        coEvery { blogs.postsPage("blog", null) } returns Page(listOf(post("current"), post("next")), null, true)
+        coEvery { blogs.post("blog", "current") } returns post("current")
+        val model = PlayerViewModel(blogs, progress)
+        model.load("blog", "current"); advanceUntilIdle()
+        assertEquals(AdjacentVideoResult.Boundary,
+            model.adjacentVideo(model.state.value as PlayerUiState.Ready, VideoDirection.Previous))
+    }
+
+    @Test fun `navigation errors and missing current post do not masquerade as a boundary`() = runTest(dispatcher) {
+        coEvery { blogs.post("blog", "current") } returns post("current")
+        val model = PlayerViewModel(blogs, progress)
+        model.load("blog", "current"); advanceUntilIdle()
+        val ready = model.state.value as PlayerUiState.Ready
+        coEvery { blogs.postsPage("blog", null) } throws java.io.IOException("offline")
+        assertEquals(AdjacentVideoResult.Unavailable, model.adjacentVideo(ready, VideoDirection.Next))
+        coEvery { blogs.postsPage("blog", null) } returns Page(listOf(post("other")), null, true)
+        assertEquals(AdjacentVideoResult.Unavailable, model.adjacentVideo(ready, VideoDirection.Previous))
+        assertEquals(ready, model.state.value)
+    }
+
+    @Test fun `repeated cursor stops navigation and cancellation propagates`() = runTest(dispatcher) {
+        coEvery { blogs.post("blog", "current") } returns post("current")
+        val model = PlayerViewModel(blogs, progress)
+        model.load("blog", "current"); advanceUntilIdle()
+        val ready = model.state.value as PlayerUiState.Ready
+        coEvery { blogs.postsPage("blog", any()) } returns Page(listOf(post("other")), "same", false)
+        assertEquals(AdjacentVideoResult.Unavailable, model.adjacentVideo(ready, VideoDirection.Next))
+        coVerify(exactly = 2) { blogs.postsPage("blog", any()) }
+        coEvery { blogs.postsPage("blog", null) } throws CancellationException()
+        assertEquals(true, runCatching { model.adjacentVideo(ready, VideoDirection.Previous) }.exceptionOrNull() is CancellationException)
+    }
 }

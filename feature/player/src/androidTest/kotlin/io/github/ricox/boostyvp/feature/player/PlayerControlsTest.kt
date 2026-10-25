@@ -249,6 +249,21 @@ class PlayerControlsTest {
         compose.runOnIdle {
             listOf(MediaR.id.exo_rew_with_amount to "10", MediaR.id.exo_ffwd_with_amount to "30").forEach { (id, amount) ->
                 val button = view.findViewById<Button>(id)
+                val arrow = checkNotNull(button.foreground) { "Native seek arrow was removed" }
+                val bounds = Rect(arrow.bounds)
+                val bitmap = android.graphics.Bitmap.createBitmap(button.width, button.height,
+                    android.graphics.Bitmap.Config.ARGB_8888)
+                try {
+                    arrow.setBounds(0, 0, button.width, button.height)
+                    arrow.draw(android.graphics.Canvas(bitmap))
+                    val pixels = IntArray(button.width * button.height)
+                    bitmap.getPixels(pixels, 0, button.width, 0, 0, button.width, button.height)
+                    assertTrue("Seek arrow must visibly render, not just an empty ripple",
+                        pixels.count { android.graphics.Color.alpha(it) > 32 } > pixels.size / 100)
+                } finally {
+                    arrow.bounds = bounds
+                    bitmap.recycle()
+                }
                 val text = button.text.toString()
                 assertEquals(amount, text)
                 val glyphs = Rect()

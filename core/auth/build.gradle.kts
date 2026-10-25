@@ -25,7 +25,7 @@ require(pairingPort in 0..65535) { "pairingPort must be 0 (automatic) or a TCP p
 
 android {
     namespace = "io.github.ricox.boostyvp.core.auth"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         buildConfigField("String", "PAIRING_HOST", "\"\"")
@@ -63,6 +63,7 @@ kotlin {
 
 dependencies {
     api(project(":core:model"))
+    implementation(project(":core:localization"))
     implementation(project(":core:domain"))
 
     implementation(libs.androidx.core.ktx)

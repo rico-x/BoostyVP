@@ -41,7 +41,7 @@ jobs:
         if: matrix.language == 'java-kotlin'
       - name: Install SDK
         if: matrix.language == 'java-kotlin'
-        run: bash build-support/install-sdk.sh 'platforms;android-35' 'build-tools;35.0.0'
+        run: bash build-support/install-sdk.sh 'platforms;android-36' 'build-tools;35.0.0'
       - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with:
           languages: ${{ matrix.language }}

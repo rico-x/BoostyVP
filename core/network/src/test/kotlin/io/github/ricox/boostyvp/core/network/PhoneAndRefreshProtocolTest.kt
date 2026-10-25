@@ -1,6 +1,6 @@
 package io.github.ricox.boostyvp.core.network
 
-import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import io.github.ricox.boostyvp.core.domain.auth.AuthException
 import io.github.ricox.boostyvp.core.domain.auth.SessionManager
 import io.github.ricox.boostyvp.core.domain.auth.TokenStore

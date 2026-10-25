@@ -5,6 +5,8 @@ import kotlinx.coroutines.flow.Flow
 
 /** Resume points of the signed-in account; another account never sees them. */
 interface PlaybackProgressRepository {
+    /** Session recreation must respect the user's per-account resume privacy switch. */
+    suspend fun recordsResumePositions(): Boolean = true
     suspend fun save(progress: WatchProgress)
     suspend fun resumePositionMs(postId: String, videoId: String): Long
     suspend fun clear(postId: String, videoId: String)

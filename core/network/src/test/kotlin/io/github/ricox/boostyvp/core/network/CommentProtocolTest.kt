@@ -1,6 +1,6 @@
 package io.github.ricox.boostyvp.core.network
 
-import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import io.github.ricox.boostyvp.core.model.ContentBlock
 import io.github.ricox.boostyvp.core.network.dto.CommentDto
 import io.github.ricox.boostyvp.core.network.dto.PostDto

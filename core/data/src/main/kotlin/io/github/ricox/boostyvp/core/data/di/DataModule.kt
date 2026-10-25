@@ -12,6 +12,9 @@ import io.github.ricox.boostyvp.core.data.account.AccountIdCache
 import io.github.ricox.boostyvp.core.data.account.BoostyCurrentAccount
 import io.github.ricox.boostyvp.core.data.account.PreferencesAccountIdCache
 import io.github.ricox.boostyvp.core.data.library.LibraryDatabase
+import io.github.ricox.boostyvp.core.data.library.PersonalLibraryDao
+import io.github.ricox.boostyvp.core.data.repository.RoomPersonalLibraryRepository
+import io.github.ricox.boostyvp.core.domain.repository.PersonalLibraryRepository
 import io.github.ricox.boostyvp.core.data.library.PlaybackProgressDao
 import io.github.ricox.boostyvp.core.data.library.WatchHistoryDao
 import io.github.ricox.boostyvp.core.data.repository.RoomWatchHistoryRepository
@@ -32,6 +35,8 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class DataModule {
+    @Binds
+    abstract fun bindPersonalLibrary(impl: RoomPersonalLibraryRepository): PersonalLibraryRepository
     @Binds
     abstract fun bindPostComments(impl: DefaultPostCommentsRepository): PostCommentsRepository
 
@@ -64,7 +69,10 @@ object LibraryModule {
     @Singleton
     fun provideLibraryDatabase(@ApplicationContext context: Context): LibraryDatabase =
         Room.databaseBuilder(context, LibraryDatabase::class.java, LibraryDatabase.NAME)
-            .addMigrations(LibraryDatabase.MIGRATION_1_2).build()
+            .addMigrations(LibraryDatabase.MIGRATION_1_2, LibraryDatabase.MIGRATION_2_3, LibraryDatabase.MIGRATION_3_4).build()
+
+    @Provides
+    fun providePersonalLibraryDao(database: LibraryDatabase): PersonalLibraryDao = database.personalLibrary()
 
     @Provides
     fun providePlaybackProgressDao(database: LibraryDatabase): PlaybackProgressDao = database.playbackProgress()

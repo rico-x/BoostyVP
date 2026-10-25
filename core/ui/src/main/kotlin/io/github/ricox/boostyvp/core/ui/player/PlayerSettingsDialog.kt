@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.core.ui.player
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -34,41 +38,58 @@ fun PlayerSettingsDialog(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text("Настройки плеера", style = MaterialTheme.typography.headlineSmall)
-            Text("Сохраняются автоматически. Применяются к следующему видео. OK меняет значение.",
+            Text(tr(UiText.player_settings_dialog_001), style = MaterialTheme.typography.headlineSmall)
+            Text(tr(UiText.player_settings_dialog_002),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            TvActionButton("Назад: ${options.seekBackSeconds} с", {
+            TvActionButton(tr(UiText.player_settings_dialog_003, options.seekBackSeconds), {
                 onChange(options.copy(seekBackSeconds = PlayerOptions.BACK_STEPS.nextChoice(options.seekBackSeconds)))
             }, Modifier.fillMaxWidth())
-            TvActionButton("Вперёд: ${options.seekForwardSeconds} с", {
+            TvActionButton(tr(UiText.player_settings_dialog_004, options.seekForwardSeconds), {
                 onChange(options.copy(seekForwardSeconds = PlayerOptions.FORWARD_STEPS.nextChoice(options.seekForwardSeconds)))
             }, Modifier.fillMaxWidth())
-            val timeout = if (options.controllerSeconds == 0) "не скрывать" else "${options.controllerSeconds} с"
-            TvActionButton("Панель управления: $timeout", {
+            val timeout = if (options.controllerSeconds == 0) tr(UiText.player_settings_dialog_005) else tr(UiText.player_settings_dialog_006, options.controllerSeconds)
+            TvActionButton(tr(UiText.player_settings_dialog_007, timeout), {
                 onChange(options.copy(controllerSeconds = PlayerOptions.CONTROLLER_TIMES.nextChoice(options.controllerSeconds)))
             }, Modifier.fillMaxWidth())
-            TvActionButton("Запоминать скорость: ${yesNo(options.rememberSpeed)}", {
+            TvActionButton(tr(UiText.player_settings_dialog_008, yesNo(options.rememberSpeed)), {
                 onChange(options.copy(rememberSpeed = !options.rememberSpeed))
             }, Modifier.fillMaxWidth())
-            TvActionButton("Скорость для каждого автора: ${yesNo(options.speedPerAuthor)}", {
+            TvActionButton(tr(UiText.player_settings_dialog_009, yesNo(options.speedPerAuthor)), {
                 onChange(options.copy(speedPerAuthor = !options.speedPerAuthor))
             }, Modifier.fillMaxWidth())
-            TvActionButton("Запоминать качество: ${yesNo(options.rememberQuality)}", {
+            TvActionButton(tr(UiText.player_settings_dialog_010, yesNo(options.rememberQuality)), {
                 onChange(options.copy(rememberQuality = !options.rememberQuality))
             }, Modifier.fillMaxWidth())
-            TvActionButton("В конце видео: ${options.endAction.label}", {
+            TvActionButton(tr(UiText.player_settings_dialog_011, options.endAction.label), {
                 onChange(options.copy(endAction = EndAction.entries.nextItem(options.endAction)))
             }, Modifier.fillMaxWidth())
-            TvActionButton("Таймер сна: ${PlayerOptions.sleepLabel(options.sleepTimerMinutes)}", {
+            TvActionButton(tr(UiText.player_settings_dialog_012, PlayerOptions.sleepLabel(options.sleepTimerMinutes)), {
                 onChange(options.copy(sleepTimerMinutes = PlayerOptions.SLEEP_TIMES.nextChoice(options.sleepTimerMinutes)))
             }, Modifier.fillMaxWidth())
             if (options.sleepTimerMinutes > 0) Text(
-                "Пауза, если столько времени не нажимать кнопки пульта во время просмотра.",
+                tr(UiText.player_settings_dialog_013),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            TvActionButton("Готово", onDismiss, Modifier.fillMaxWidth(), primary = true)
+            Text(tr(UiText.player_settings_dialog_014), style = MaterialTheme.typography.titleMedium)
+            TvActionButton("CH±: ${if (options.channelVideoNavigation) tr(UiText.player_settings_dialog_015) else tr(UiText.player_settings_dialog_016)}", {
+                onChange(options.copy(channelVideoNavigation = !options.channelVideoNavigation))
+            }, Modifier.fillMaxWidth())
+            TvActionButton("FF/REW: ${if (options.transportVideoNavigation) tr(UiText.player_settings_dialog_015) else tr(UiText.player_settings_dialog_017)}", {
+                onChange(options.copy(transportVideoNavigation = !options.transportVideoNavigation))
+            }, Modifier.fillMaxWidth())
+            TvActionButton(tr(UiText.player_settings_dialog_019, if (options.digitSeek) tr(UiText.player_settings_dialog_018) else tr(UiText.player_settings_dialog_016)), {
+                onChange(options.copy(digitSeek = !options.digitSeek))
+            }, Modifier.fillMaxWidth())
+            TvActionButton(tr(UiText.player_settings_dialog_020, yesNo(options.doubleBackExit)), {
+                onChange(options.copy(doubleBackExit = !options.doubleBackExit))
+            }, Modifier.fillMaxWidth())
+            TvActionButton(tr(UiText.player_settings_dialog_021, options.videoScale.label), {
+                onChange(options.copy(videoScale = VideoScale.entries.nextItem(options.videoScale)))
+            }, Modifier.fillMaxWidth())
+            TvActionButton(tr(UiText.settings_close), onDismiss,
+                Modifier.fillMaxWidth().testTag("player_settings_close"), primary = true)
         }
     }
 }
 
-private fun yesNo(value: Boolean) = if (value) "да" else "нет"
+private fun yesNo(value: Boolean) = if (value) tr(UiText.player_settings_dialog_022) else tr(UiText.player_settings_dialog_023)
