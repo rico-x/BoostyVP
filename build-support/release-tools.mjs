@@ -15,7 +15,7 @@ export const config = JSON.parse(readFileSync(join(root, 'build-support/release-
  * "2026.10.24.1". Number 0 marks a build that is not a release. The Android
  * versionCode is YYMMDDNN, so every later release installs over an earlier one.
  */
-export const RELEASE_TIME_ZONE = 'Europe/Moscow';
+export const RELEASE_TIME_ZONE = 'UTC';
 const VERSION_PATTERN = /^(20\d{2})\.(0[1-9]|1[0-2])\.(0[1-9]|[12]\d|3[01])\.(0|[1-9]\d?)$/;
 
 export function parseVersion(name) {
@@ -36,15 +36,25 @@ export function releaseDate(now = new Date()) {
   return `${parts.year}.${parts.month}.${parts.day}`;
 }
 
-/** The next release today: one more than the highest `v<date>.N` tag, starting at 1. */
-export function nextVersion(tags, now = new Date()) {
+/**
+ * The next release today: one more than the highest `v<date>.N` tag, starting at 1.
+ * [requested] picks a higher number instead, e.g. to stay above a local build
+ * already installed with `.1`; it must carry today's date and an unused, higher number.
+ */
+export function nextVersion(tags, now = new Date(), requested = '') {
   const date = releaseDate(now);
   const prefix = `v${date}.`;
   const taken = tags.map(t => t.trim()).filter(t => t.startsWith(prefix))
     .map(t => t.slice(prefix.length)).filter(n => /^[1-9]\d?$/.test(n)).map(Number);
-  const number = Math.max(0, ...taken) + 1;
-  assert.ok(number <= 99, `Too many releases on ${date}`);
-  return parseVersion(`${date}.${number}`);
+  const highest = Math.max(0, ...taken);
+  if (requested) {
+    const v = parseVersion(requested);
+    assert.equal(v.date, date, `A release carries today's UTC date ${date}: ${requested}`);
+    assert.ok(v.number > highest, `${requested} is not above the releases already made today`);
+    return v;
+  }
+  assert.ok(highest + 1 <= 99, `Too many releases on ${date}`);
+  return parseVersion(`${date}.${highest + 1}`);
 }
 
 /** BOOSTYVP_VERSION when a release is being built, otherwise today's unreleased ".0" build. */
@@ -143,7 +153,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     if (command === 'version') console.log(version().name);
     else if (command === 'next-version') {
       const tags = run('git', ['tag', '--list', 'v*']).split('\n').filter(Boolean);
-      console.log(nextVersion(tags).name);
+      console.log(nextVersion(tags, new Date(), process.argv[3] ?? '').name);
     }
     else if (command === 'outputs' || command === 'check-apks') {
       const outputs = parseOutputs(JSON.parse(readFileSync(join(directory, 'output-metadata.json'), 'utf8')));
@@ -153,7 +163,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       }
     } else if (command === 'manifest') makeManifest(directory);
     else if (command === 'verify-assets') verifyAssets(directory);
-    else throw new Error('Usage: release-tools.mjs version|next-version|outputs|check-apks|manifest|verify-assets [directory]');
+    else throw new Error('Usage: release-tools.mjs version|next-version [requested]|outputs|check-apks|manifest|verify-assets [directory]');
   } catch (error) {
     // Only validation errors reach this CLI, never keystore contents/passwords.
     console.error(`Release validation failed: ${error.message}`);

@@ -1,16 +1,36 @@
 package io.github.ricox.boostyvp.core.ui.player
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 /** What the player does when a video finishes. */
-enum class EndAction(val id: String, val label: String) {
+enum class EndAction(val id: String, private val labelText: () -> String) {
     /** Stay on the last frame with the controls shown -- the original behaviour. */
-    Stop("stop", "остановиться"),
+    Stop("stop", { tr(UiText.player_options_001) }),
     /** The next video to the right in the author's row, after a short countdown. */
-    Next("next", "следующее видео автора"),
-    Repeat("repeat", "повторить"),
-    Close("close", "закрыть плеер");
+    Next("next", { tr(UiText.player_options_002) }),
+    Repeat("repeat", { tr(UiText.player_options_003) }),
+    Close("close", { tr(UiText.player_options_004) });
+    val label: String get() = labelText()
+
 
     companion object {
         fun fromId(id: String?) = entries.firstOrNull { it.id == id } ?: Stop
+    }
+}
+
+/** Native geometry only: no colour, sharpening or HDR processing. */
+enum class VideoScale(val id: String, private val labelText: () -> String) {
+    Fit("fit", { tr(UiText.player_options_005) }),
+    Width("width", { tr(UiText.player_options_006) }),
+    Height("height", { tr(UiText.player_options_007) }),
+    Stretch("stretch", { tr(UiText.player_options_008) }),
+    Crop("crop", { tr(UiText.player_options_009) });
+    val label: String get() = labelText()
+
+
+    companion object {
+        fun fromId(id: String?) = entries.firstOrNull { it.id == id } ?: Fit
     }
 }
 
@@ -27,6 +47,11 @@ data class PlayerOptions(
     val rememberQuality: Boolean = true,
     /** Remember the speed separately for each author instead of one for all. */
     val speedPerAuthor: Boolean = false,
+    val channelVideoNavigation: Boolean = false,
+    val transportVideoNavigation: Boolean = false,
+    val digitSeek: Boolean = false,
+    val doubleBackExit: Boolean = false,
+    val videoScale: VideoScale = VideoScale.Fit,
 ) {
     fun normalized() = copy(
         seekBackSeconds = seekBackSeconds.takeIf { it in BACK_STEPS } ?: 10,
@@ -49,9 +74,9 @@ data class PlayerOptions(
 
         /** "30 мин", "1 ч", "выкл". */
         fun sleepLabel(minutes: Int): String = when {
-            minutes <= 0 -> "выкл"
-            minutes % 60 == 0 -> "${minutes / 60} ч"
-            else -> "$minutes мин"
+            minutes <= 0 -> tr(UiText.library_privacy_dialog_016)
+            minutes % 60 == 0 -> tr(UiText.player_options_010, minutes / 60)
+            else -> tr(UiText.player_options_011, minutes)
         }
     }
 }

@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.feature.pairing
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,10 +32,10 @@ data class PhoneLoginState(
     val canSubmit: Boolean get() = !busy && !success && normalizePhone(phone) != null &&
         (!codeRequested || code.length == 6 || (code.isEmpty() && resendIn == 0))
     val button: String get() = when {
-        busy -> "Подождите…"
-        !codeRequested -> "Получить код"
-        code.isEmpty() && resendIn == 0 -> "Получить код повторно"
-        else -> "Войти"
+        busy -> tr(UiText.phone_login_view_model_001)
+        !codeRequested -> tr(UiText.phone_login_view_model_002)
+        code.isEmpty() && resendIn == 0 -> tr(UiText.phone_login_view_model_003)
+        else -> tr(UiText.phone_login_view_model_004)
     }
 }
 
@@ -78,7 +81,7 @@ class PhoneLoginViewModel @Inject constructor(
                 if (id == null || current.code.isEmpty()) {
                     verificationId = phoneLogin.requestCode(phone, deviceId).verificationId
                     _state.value = current.copy(busy = false, codeRequested = true, code = "", resendIn = 120,
-                        error = null, notice = "Введите код из SMS, Telegram или WhatsApp.")
+                        error = null, notice = tr(UiText.phone_login_view_model_005))
                     resendTimer?.cancel()
                     resendTimer = launch {
                         while (_state.value.resendIn > 0) {
@@ -98,8 +101,8 @@ class PhoneLoginViewModel @Inject constructor(
             } catch (e: Exception) {
                 val message = when (e) {
                     is PhoneLoginException -> e.message
-                    is IOException -> "Не удалось подключиться к Boosty. Проверьте сеть и повторите."
-                    else -> "Не удалось завершить вход. Попробуйте ещё раз."
+                    is IOException -> tr(UiText.phone_login_view_model_006)
+                    else -> tr(UiText.phone_login_view_model_007)
                 }
                 _state.value = _state.value.copy(busy = false, error = message)
             }

@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.navigation
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -35,7 +38,7 @@ class RootViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                _signOutState.value = SignOutState(error = "Не удалось выйти. Попробуйте ещё раз.")
+                _signOutState.value = SignOutState(error = tr(UiText.root_view_model_001))
             } finally {
                 _signOutState.value = _signOutState.value.copy(inProgress = false)
             }

@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.feature.home
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,26 +32,27 @@ internal fun NewFeedContent(
     gridState: LazyGridState,
     onPostClick: (Post) -> Unit,
     onPostLongClick: (Post) -> Unit,
+    onlyUnwatched: Boolean = false,
 ) {
     val refresh = posts.loadState.refresh
     val density = LocalInterfaceOptions.current.density
     when {
         refresh is LoadState.Error && posts.itemCount == 0 -> {
             ErrorState(
-                title = "Не удалось загрузить новые публикации",
+                title = tr(UiText.new_feed_content_001),
                 detail = refresh.error.message,
                 onRetry = { posts.retry() },
             )
             return
         }
-        posts.itemCount == 0 && refresh is LoadState.Loading -> {
+        posts.itemCount == 0 && (refresh is LoadState.Loading || posts.loadState.append is LoadState.Loading) -> {
             LoadingState()
             return
         }
         posts.itemCount == 0 -> {
             EmptyState(
-                title = "Новых публикаций пока нет",
-                detail = "Свежие публикации ваших авторов появятся здесь по дате.",
+                title = if (onlyUnwatched) tr(UiText.blog_screen_005) else tr(UiText.new_feed_content_002),
+                detail = if (onlyUnwatched) tr(UiText.home_screen_012) else tr(UiText.new_feed_content_003),
             )
             return
         }
@@ -72,7 +76,7 @@ internal fun NewFeedContent(
         if (posts.loadState.append is LoadState.Error) {
             item(key = "new_append_error", span = { GridItemSpan(maxLineSpan) }) {
                 ErrorState(
-                    detail = "Не удалось загрузить следующие публикации.",
+                    detail = tr(UiText.blog_screen_009),
                     onRetry = { posts.retry() },
                     modifier = Modifier.height(180.dp),
                 )

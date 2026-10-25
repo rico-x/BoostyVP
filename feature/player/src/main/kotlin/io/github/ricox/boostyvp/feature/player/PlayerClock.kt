@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.feature.player
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -39,7 +42,7 @@ internal fun attachPlayerClock(playerView: PlayerView, controls: PlayerControlVi
     }
     controls.addView(clock, FrameLayout.LayoutParams(context.playerDp(216), ViewGroup.LayoutParams.WRAP_CONTENT,
         Gravity.TOP or Gravity.END).apply { setMargins(0, context.playerDp(32), context.playerDp(48), 0) })
-    val format = SimpleDateFormat("HH:mm", Locale.forLanguageTag("ru"))
+    val format = SimpleDateFormat("HH:mm", io.github.ricox.boostyvp.localization.Language.locale)
     val update = object : Runnable {
         override fun run() {
             if (!clock.isAttachedToWindow) return
@@ -49,9 +52,9 @@ internal fun attachPlayerClock(playerView: PlayerView, controls: PlayerControlVi
                 val value = buildList {
                     if (options.playerClock) add(format.format(Date(now)))
                     if (options.playerEndTime && player != null && !player.isCurrentMediaItemLive) {
-                        if (!player.playWhenReady && player.duration > 0) add("Окончание: на паузе")
+                        if (!player.playWhenReady && player.duration > 0) add(tr(UiText.player_clock_001))
                         else estimatedEndTimeMs(now, player.currentPosition, player.duration, player.playbackParameters.speed)
-                            ?.let { add("Окончание ≈ ${format.format(Date(it))}") }
+                            ?.let { add(tr(UiText.player_clock_002, format.format(Date(it)))) }
                     }
                 }.joinToString("\n")
                 val secondaryStart = if (options.playerClock) value.indexOf('\n').let { if (it < 0) value.length else it + 1 } else 0

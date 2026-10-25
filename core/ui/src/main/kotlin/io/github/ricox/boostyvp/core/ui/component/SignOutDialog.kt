@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.core.ui.component
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -44,15 +47,15 @@ fun SignOutDialog(
         ) {
             Icon(Icons.AutoMirrored.Filled.ExitToApp, null,
                 tint = colors.primary, modifier = Modifier.size(32.dp))
-            Text("Выйти из профиля?", style = MaterialTheme.typography.headlineSmall)
-            Text("Ваши подписки останутся в Boosty. Для просмотра на ТВ потребуется войти снова.",
+            Text(tr(UiText.sign_out_dialog_001), style = MaterialTheme.typography.headlineSmall)
+            Text(tr(UiText.sign_out_dialog_002),
                 style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
             if (error != null) Text(error, color = colors.error)
             Row(Modifier.fillMaxWidth().padding(top = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                TvActionButton("Остаться", onDismiss,
+                TvActionButton(tr(UiText.sign_out_dialog_003), onDismiss,
                     modifier = Modifier.weight(1f).focusRequester(cancelFocus), enabled = !inProgress)
-                TvActionButton(if (inProgress) "Выходим…" else "Выйти", onConfirm,
+                TvActionButton(if (inProgress) tr(UiText.sign_out_dialog_004) else tr(UiText.sign_out_dialog_005), onConfirm,
                     modifier = Modifier.weight(1f), enabled = !inProgress)
             }
         }

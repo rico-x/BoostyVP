@@ -1,5 +1,5 @@
 import java.time.LocalDate
-import java.time.ZoneId
+import java.time.ZoneOffset
 
 plugins {
     alias(libs.plugins.android.application)
@@ -11,7 +11,7 @@ plugins {
 
 /** Today's unreleased build, "YYYY.MM.DD.0"; re-evaluated on every build, so a cached configuration never keeps yesterday. */
 abstract class TodayBuildVersion : ValueSource<String, ValueSourceParameters.None> {
-    override fun obtain(): String = LocalDate.now(ZoneId.of("Europe/Moscow"))
+    override fun obtain(): String = LocalDate.now(ZoneOffset.UTC)
         .let { "%04d.%02d.%02d.0".format(it.year, it.monthValue, it.dayOfMonth) }
 }
 
@@ -28,9 +28,11 @@ val appVersionCode: Int = Regex("""(20\d{2})\.(0[1-9]|1[0-2])\.(0[1-9]|[12]\d|3[
 
 val prepareLegalAssets by tasks.registering(Sync::class) {
     from(listOf(rootProject.file("LICENSE.md"), rootProject.file("NOTICE.md"), rootProject.file("DISCLAIMER.md"),
-        rootProject.file("SECURITY.md"))) { into("legal") }
-    from(listOf(rootProject.file("docs/THIRD_PARTY.md"), rootProject.file("docs/PRIVACY.md"))) { into("legal/docs") }
-    from(listOf(rootProject.file("LICENSES/MIT.txt"), rootProject.file("LICENSES/Apache-2.0.txt"))) { into("legal/LICENSES") }
+        rootProject.file("SECURITY.md"), rootProject.file("LICENSE.en.md"), rootProject.file("NOTICE.en.md"),
+        rootProject.file("DISCLAIMER.en.md"), rootProject.file("SECURITY.en.md"))) { into("legal") }
+    from(listOf(rootProject.file("docs/THIRD_PARTY.md"), rootProject.file("docs/PRIVACY.md"),
+        rootProject.file("docs/THIRD_PARTY.en.md"), rootProject.file("docs/PRIVACY.en.md"))) { into("legal/docs") }
+    from(rootProject.file("LICENSES")) { into("legal/LICENSES") }
     into(layout.buildDirectory.dir("generated/legalAssets"))
 }
 
@@ -38,7 +40,7 @@ tasks.named("preBuild") { dependsOn(prepareLegalAssets) }
 
 android {
     namespace = "io.github.ricox.boostyvp"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         // Independent fork identity. Never reuse another application's account data.
@@ -76,6 +78,7 @@ android {
     }
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
@@ -122,6 +125,13 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.tv.material)
+    implementation(libs.androidx.tvprovider)
+    implementation(libs.coil.network.okhttp)
+    implementation(libs.coil.network.cache.control)
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
+    implementation(libs.okhttp.core)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.zxing.core)
 
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)

@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "io.github.ricox.boostyvp.core.network"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 23
@@ -33,12 +33,12 @@ kotlin {
 
 dependencies {
     api(project(":core:model"))
+    implementation(project(":core:localization"))
     implementation(project(":core:domain"))
 
     implementation(libs.retrofit.core)
     implementation(libs.retrofit.serialization)
     implementation(libs.okhttp.core)
-    implementation(libs.okhttp.logging)
     api(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.core)
 

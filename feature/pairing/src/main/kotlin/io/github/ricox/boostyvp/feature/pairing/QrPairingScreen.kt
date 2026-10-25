@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.feature.pairing
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -43,7 +46,7 @@ fun QrPairingScreen(onPaired: () -> Unit, onBack: (() -> Unit)? = null,
     when (val current = state) {
         is QrPairingState.Starting, is QrPairingState.Receiving, is QrPairingState.Success -> LoadingState()
         is QrPairingState.Failed -> ErrorState(
-            title = "Не удалось подключиться",
+            title = tr(UiText.qr_pairing_screen_001),
             detail = listOfNotNull(current.message, current.detail).joinToString("\n\n"),
             onRetry = viewModel::begin,
         )
@@ -73,25 +76,25 @@ fun QrPairingContent(url: String, onBack: (() -> Unit)? = null) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    if (qr != null) Image(qr, "QR-код для подключения к ТВ",
+                    if (qr != null) Image(qr, tr(UiText.qr_pairing_screen_002),
                         Modifier.size(240.dp).clip(RoundedCornerShape(8.dp)))
-                    Text("Наведите камеру телефона", style = MaterialTheme.typography.labelLarge,
+                    Text(tr(UiText.qr_pairing_screen_003), style = MaterialTheme.typography.labelLarge,
                         color = colors.onPrimary)
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                    ScreenHeading("Продолжите на своём устройстве",
-                        "Отсканируйте QR-код, войдите в Boosty в браузере и подтвердите подключение к ТВ.")
+                    ScreenHeading(tr(UiText.qr_pairing_screen_004),
+                        tr(UiText.qr_pairing_screen_005))
                     Column(
                         Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(16.dp))
                             .border(1.dp, colors.border.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
                             .padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Text("Или откройте в браузере", style = MaterialTheme.typography.bodyMedium,
+                        Text(tr(UiText.qr_pairing_screen_006), style = MaterialTheme.typography.bodyMedium,
                             color = colors.onSurfaceVariant)
                         Text(url, style = MaterialTheme.typography.titleLarge, color = colors.primary)
                     }
-                    StatusChip("Телефон и ТВ — в одной сети")
-                    Text("Код работает, пока открыт этот экран.",
+                    StatusChip(tr(UiText.qr_pairing_screen_007))
+                    Text(tr(UiText.qr_pairing_screen_008),
                         style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
                 }
             }

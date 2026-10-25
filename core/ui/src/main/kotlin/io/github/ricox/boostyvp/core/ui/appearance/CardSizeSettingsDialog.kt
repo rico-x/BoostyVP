@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.core.ui.appearance
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -74,7 +77,7 @@ fun CardSizeSettingsDialog(
     )) {
         BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
             // Match the real content widths (sidebar/overscan/padding), not the preview panel width.
-            val sidebarWidth = BrowseDimensions.contentSidebarWidth(options).dp
+            val sidebarWidth = BrowseDimensions.contentSidebarWidth(options, LocalMenuOptions.current).dp
             val homeWidth = (maxWidth - sidebarWidth - 24.dp * 2).coerceAtLeast(1.dp)
             val newWidth = (maxWidth - sidebarWidth - 24.dp - Overscan.Horizontal).coerceAtLeast(1.dp)
             val blogWidth = (maxWidth - Overscan.Horizontal * 2).coerceAtLeast(1.dp)
@@ -82,15 +85,15 @@ fun CardSizeSettingsDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically) {
-                    Text("Размер карточек", style = MaterialTheme.typography.headlineSmall)
+                    Text(tr(UiText.card_size_settings_dialog_001), style = MaterialTheme.typography.headlineSmall)
                     Text("${size.ordinal + 1} / ${CardSize.entries.size} · ${size.label}",
                         style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                 }
-                Text("← → меняют размер · OK или Назад — закрыть. Выбор сохраняется автоматически.",
+                Text(tr(UiText.card_size_settings_dialog_002),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 CardSizeSlider(size, onChange, onDismiss, Modifier.focusRequester(sliderFocus))
-                Text("Карточек в строке: подписки — ${size.cardsPerRow(homeWidth.value, gap)} · " +
-                    "«Новое» — ${size.cardsPerRow(newWidth.value, gap)} · автор — ${size.cardsPerRow(blogWidth.value, gap)}",
+                Text(tr(UiText.card_size_settings_dialog_003, size.cardsPerRow(homeWidth.value, gap)) +
+                    tr(UiText.card_size_settings_dialog_004, size.cardsPerRow(newWidth.value, gap), size.cardsPerRow(blogWidth.value, gap)),
                     style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("card_size_count"))
                 // Real card layout, no account data, image downloads or extra remote focus stops.
                 Box(Modifier.weight(1f).fillMaxWidth().clipToBounds(), contentAlignment = Alignment.Center) {
@@ -106,11 +109,11 @@ fun CardSizeSettingsDialog(
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    Text("Общий размер для всех лент. Обложки сохраняют пропорции 16:9.",
+                    Text(tr(UiText.card_size_settings_dialog_005),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f))
-                    TvActionButton("Как раньше", { onChange(CardSize.Default) })
-                    TvActionButton("Готово", onDismiss, primary = true)
+                    TvActionButton(tr(UiText.card_size_settings_dialog_006), { onChange(CardSize.Default) })
+                    TvActionButton(tr(UiText.settings_close), onDismiss, Modifier.testTag("card_size_close"), primary = true)
                 }
             }
             // BoxWithConstraints subcomposes its children during measurement. Request only after
@@ -155,8 +158,8 @@ private fun CardSizeSlider(
             }
         }
         .semantics {
-            contentDescription = "Размер карточек"
-            stateDescription = "${size.label}, ${size.ordinal + 1} из ${CardSize.entries.size}"
+            contentDescription = tr(UiText.card_size_settings_dialog_001)
+            stateDescription = tr(UiText.card_size_settings_dialog_008, size.label, size.ordinal + 1, CardSize.entries.size)
             progressBarRangeInfo = ProgressBarRangeInfo(size.ordinal.toFloat(),
                 0f..CardSize.entries.lastIndex.toFloat(), steps = CardSize.entries.size - 2)
             setProgress { value ->
@@ -168,7 +171,7 @@ private fun CardSizeSlider(
         }
         .testTag("card_size_slider").focusable().padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("Мельче", style = MaterialTheme.typography.labelLarge)
+        Text(tr(UiText.card_size_settings_dialog_009), style = MaterialTheme.typography.labelLarge)
         Canvas(Modifier.weight(1f).height(40.dp).pointerInput(size) {
             detectTapGestures { point ->
                 val inset = 10.dp.toPx()
@@ -191,12 +194,12 @@ private fun CardSizeSlider(
             drawCircle(colors.onSurface, 10.dp.toPx(), thumb)
             drawCircle(colors.primary, 6.dp.toPx(), thumb)
         }
-        Text("Крупнее", style = MaterialTheme.typography.labelLarge)
+        Text(tr(UiText.card_size_settings_dialog_010), style = MaterialTheme.typography.labelLarge)
     }
 }
 
-private val PreviewPosts = (1..10).map { index ->
-    Post("preview_$index", index.toLong(), "Название видео $index", "preview", "Автор", 0,
+private val PreviewPosts get() = (1..10).map { index ->
+    Post("preview_$index", index.toLong(), tr(UiText.card_size_settings_dialog_011, index), "preview", tr(UiText.card_size_settings_dialog_012), 0,
         true, false, false, false, null,
         listOf(ContentBlock.Video("preview_$index", null, null, 0, 1920, 1080, null, null, null,
             emptyList(), true)), emptyList())

@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.feature.home
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,10 +41,14 @@ import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.PagingData
+import androidx.paging.filter
+import kotlinx.coroutines.flow.map
+import io.github.ricox.boostyvp.core.ui.component.LocalLibraryControls
 import androidx.paging.compose.collectAsLazyPagingItems
 import io.github.ricox.boostyvp.core.model.Post
 import io.github.ricox.boostyvp.core.ui.appearance.InterfaceSettingsDialog
 import io.github.ricox.boostyvp.core.ui.appearance.LocalInterfaceOptions
+import io.github.ricox.boostyvp.core.ui.appearance.LocalMenuOptions
 import io.github.ricox.boostyvp.core.ui.appearance.BrowseDimensions
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
@@ -50,6 +57,7 @@ import io.github.ricox.boostyvp.core.ui.component.ErrorState
 import io.github.ricox.boostyvp.core.ui.component.LoadingState
 import io.github.ricox.boostyvp.core.ui.component.PostRow
 import io.github.ricox.boostyvp.core.ui.component.PostActionsDialog
+import io.github.ricox.boostyvp.core.ui.component.TvActionButton
 import io.github.ricox.boostyvp.core.ui.component.focusedTitleSpace
 import io.github.ricox.boostyvp.core.ui.component.ScreenBackdrop
 import io.github.ricox.boostyvp.core.ui.component.SignOutDialog
@@ -73,6 +81,7 @@ fun HomeScreen(
     newFeedViewModel: NewFeedViewModel = hiltViewModel(),
     historyViewModel: HistoryViewModel = hiltViewModel(),
     onPostFromStart: (Post) -> Unit = onPostClick,
+    onUnifiedSettings: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val continueWatching by viewModel.continueWatching.collectAsStateWithLifecycle()
@@ -87,7 +96,8 @@ fun HomeScreen(
         onInterfaceSettings = { showInterfaceSettings = true },
         newPosts = newFeedViewModel.posts, continueWatching = continueWatching,
         history = historyViewModel.state, onHistoryRetry = historyViewModel::retry,
-        onRemoveHistory = { historyViewModel.remove(it.id) }, onPostFromStart = onPostFromStart)
+        onRemoveHistory = { historyViewModel.remove(it.id) }, onPostFromStart = onPostFromStart,
+        onRetryAuthor = viewModel::retryAuthor, onUnifiedSettings = onUnifiedSettings)
     if (showInterfaceSettings) InterfaceSettingsDialog(onDismiss = { showInterfaceSettings = false })
     if (showPlayerSettings) PlayerSettingsDialog(options, onChange = {
         options = it
@@ -115,6 +125,8 @@ fun HomeLayout(
     onHistoryRetry: () -> Unit = {},
     onRemoveHistory: (suspend (Post) -> Boolean)? = null,
     onPostFromStart: (Post) -> Unit = onPostClick,
+    onRetryAuthor: (String) -> Unit = {},
+    onUnifiedSettings: (() -> Unit)? = null,
 ) {
     val menuFocus = remember { FocusRequester() }
     val contentFocus = remember { FocusRequester() }
@@ -122,19 +134,44 @@ fun HomeLayout(
     var focusMenu by remember { mutableStateOf(false) }
     var menuExpanded by remember { mutableStateOf(true) }
     val interfaceOptions = LocalInterfaceOptions.current
+    val menuOptions = LocalMenuOptions.current
+    LaunchedEffect(menuOptions.hidden) {
+        if (section.name.lowercase() in menuOptions.hidden) { section = HomeSection.Subscriptions; focusMenu = true }
+    }
     // Survives section switches and the player dialog, like the author grid.
     val newGridState = rememberLazyGridState()
     val historyGridState = rememberLazyGridState()
+    val laterGridState = rememberLazyGridState()
+    val libraryControls = LocalLibraryControls.current
+    val watched = libraryControls.library.watched
+    var onlyUnwatched by rememberSaveable { mutableStateOf(false) }
+    val filteredPosts = remember(newPosts, watched, onlyUnwatched) {
+        if (!onlyUnwatched) newPosts else newPosts.map { data -> data.filter { it.id !in watched } }
+    }
+    val shownState = if (onlyUnwatched && state is HomeUiState.Content)
+        state.copy(rows = state.rows.map { row -> row.copy(posts = row.posts.filter { it.id !in watched }) }) else state
     val historyState = if (section == HomeSection.History)
         history.collectAsStateWithLifecycle(initialValue = HistoryUiState.Loading).value else HistoryUiState.Loading
     var actionPost by remember { mutableStateOf<Post?>(null) }
     val windowFocused = LocalWindowInfo.current.isWindowFocused
+    // A normal author destination removes Home from composition (unlike the
+    // player dialog). Re-enter with a real remote focus on the restored section.
+    var enteredBefore by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (enteredBefore) focusMenu = true
+        enteredBefore = true
+    }
     // Collected only while "Новое" is shown: Home itself never requests the feed.
-    val newItems = if (section == HomeSection.New) newPosts.collectAsLazyPagingItems() else null
-    val hasContent = if (section == HomeSection.History) historyState is HistoryUiState.Failed ||
+    val newItems = if (section == HomeSection.New) filteredPosts.collectAsLazyPagingItems() else null
+    val personalSection = section == HomeSection.Later || section == HomeSection.Favorites || section == HomeSection.Videos
+    val hasContent = if (section == HomeSection.Search || section == HomeSection.Queue) true else if (personalSection) libraryControls.failed ||
+        (when(section) { HomeSection.Later -> libraryControls.library.later.isNotEmpty()
+            HomeSection.Videos -> libraryControls.library.favorites.isNotEmpty()
+            else -> libraryControls.library.authors.isNotEmpty() })
+        else if (section == HomeSection.History) historyState is HistoryUiState.Failed ||
         (historyState as? HistoryUiState.Content)?.entries?.isNotEmpty() == true
         else if (newItems != null) newItems.itemCount > 0
-        else (state as? HomeUiState.Content)?.let { content ->
+        else (shownState as? HomeUiState.Content)?.let { content ->
             continueWatching.isNotEmpty() || content.rows.any { it.posts.isNotEmpty() }
         } == true
 
@@ -162,45 +199,73 @@ fun HomeLayout(
                     else if (hasContent) contentFocus.requestFocus()
                 },
                 menuFocus = menuFocus, contentFocus = contentFocus, hasContent = hasContent,
-                onRefresh = { if (section == HomeSection.History) onHistoryRetry()
+                onRefresh = { if (personalSection) libraryControls.retry()
+                    else if (section == HomeSection.History) onHistoryRetry()
                     else if (newItems != null) newItems.refresh() else onRefresh() },
                 onSettings = onPlayerSettings, onInterfaceSettings = onInterfaceSettings, onSignOut = onSignOut,
+                onUnifiedSettings = onUnifiedSettings,
                 expanded = !interfaceOptions.autoCollapseSidebar || menuExpanded,
                 onMenuFocused = { menuExpanded = true },
+                onlyUnwatched = onlyUnwatched,
+                onToggleUnwatched = if (section == HomeSection.Subscriptions || section == HomeSection.New)
+                    ({ onlyUnwatched = !onlyUnwatched }) else null,
             )
           }
           // Reading space belongs to the catalog, not the sidebar. Keeping the
           // menu full-height leaves every destination reachable with History added.
           Row(Modifier.fillMaxSize().padding(bottom = if (interfaceOptions.fullTitle) focusedTitleSpace() else 0.dp)) {
-            Spacer(Modifier.width(BrowseDimensions.contentSidebarWidth(interfaceOptions).dp))
+            Spacer(Modifier.width(BrowseDimensions.contentSidebarWidth(interfaceOptions, menuOptions,
+                expanded = menuExpanded).dp))
             Column(Modifier.weight(1f).testTag("catalog_viewport")) {
                 Column(Modifier.padding(start = 24.dp, end = Overscan.Horizontal,
                     top = Overscan.Vertical, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     val (title, subtitle) = when (section) {
-                        HomeSection.Subscriptions -> "Ваши подписки" to "Новые публикации по авторам · Долгое OK — действия"
-                        HomeSection.New -> "Новое" to "Свежие публикации всех подписок по дате · Долгое OK — действия"
-                        HomeSection.History -> "История" to "Недавние просмотры на этом ТВ · Долгое OK — действия"
+                        HomeSection.Subscriptions -> tr(UiText.interface_preview_008) to tr(UiText.home_screen_001)
+                        HomeSection.New -> tr(UiText.menu_settings_dialog_002) to tr(UiText.home_screen_002)
+                        HomeSection.History -> tr(UiText.menu_settings_dialog_003) to tr(UiText.home_screen_003)
+                        HomeSection.Later -> tr(UiText.library_privacy_dialog_005) to tr(UiText.home_screen_004)
+                        HomeSection.Favorites -> tr(UiText.library_privacy_dialog_007) to tr(UiText.home_screen_005)
+                        HomeSection.Videos -> tr(UiText.library_privacy_dialog_006) to tr(UiText.home_screen_006)
+                        HomeSection.Search -> tr(UiText.menu_settings_dialog_004) to tr(UiText.home_screen_007)
+                        HomeSection.Queue -> tr(UiText.home_screen_008) to tr(UiText.home_screen_009)
                     }
                     Text(title, style = MaterialTheme.typography.headlineSmall)
                     Text(subtitle, style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (onlyUnwatched && (section == HomeSection.Subscriptions || section == HomeSection.New))
+                        Text(tr(UiText.home_screen_010), style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary)
+                    if (section == HomeSection.Subscriptions && state is HomeUiState.Content && state.refreshFailed)
+                        Text(tr(UiText.home_screen_011), style = MaterialTheme.typography.bodySmall)
                 }
                 Box(Modifier.weight(1f).focusRequester(contentFocus)
                     .onFocusChanged { if (it.hasFocus) menuExpanded = false }
                     .focusProperties {
                         exit = { if (it == FocusDirection.Left) menuFocus else FocusRequester.Default }
                     }.focusGroup()) {
-                    if (section == HomeSection.History) {
+                    if (section == HomeSection.Search) {
+                        CatalogSearchContent(onPostClick, { actionPost = it })
+                    } else if (section == HomeSection.Queue) {
+                        QueueContent(onPostClick)
+                    } else if (personalSection) {
+                        PersonalLibraryContent(section, laterGridState, onPostClick, { actionPost = it }, onBlogClick,
+                            onRemoved = { focusMenu = true })
+                    } else if (section == HomeSection.History) {
                         HistoryContent(historyState, historyGridState, onPostClick, { actionPost = it }, onHistoryRetry)
                     } else if (newItems != null) {
-                        NewFeedContent(newItems, newGridState, onPostClick, { actionPost = it })
-                    } else when (state) {
+                        NewFeedContent(newItems, newGridState, onPostClick, { actionPost = it }, onlyUnwatched)
+                    } else if (onlyUnwatched && shownState is HomeUiState.Content &&
+                        shownState.rows.all { it.posts.isEmpty() && !it.loading && !it.failed } && continueWatching.none { it.id !in watched }) {
+                        EmptyState(title = tr(UiText.blog_screen_005), detail = tr(UiText.home_screen_012))
+                    } else when (val state = shownState) {
                         is HomeUiState.Loading -> LoadingState()
                         is HomeUiState.Error -> ErrorState(detail = state.message, onRetry = onRefresh)
                         is HomeUiState.NoSubscriptions -> EmptyState(
-                            title = "Здесь будут ваши авторы",
-                            detail = "Подпишитесь на авторов на boosty.to — их публикации появятся на вашем ТВ.")
-                        is HomeUiState.Content -> HomeContent(state, continueWatching, onPostClick, onBlogClick, menuFocus) { actionPost = it }
+                            title = tr(UiText.home_screen_013),
+                            detail = tr(UiText.home_screen_014))
+                        is HomeUiState.Content -> HomeContent(state,
+                            if (onlyUnwatched) continueWatching.filter { it.id !in watched } else continueWatching,
+                            onPostClick, onBlogClick, menuFocus, onRetryAuthor) { actionPost = it }
                     }
                 }
             }
@@ -211,11 +276,12 @@ fun HomeLayout(
         val storedVideo = continueWatching.any { it.id == post.id } ||
             (historyState as? HistoryUiState.Content)?.entries?.any { it.postId == post.id } == true
         PostActionsDialog(post, onOpen = { onPostClick(post) }, onDismiss = { actionPost = null },
-            onFromStart = if (post.isPlayable || storedVideo) ({ onPostFromStart(post) }) else null,
+            onFromStart = if (post.isPlayable || storedVideo || ((section == HomeSection.Later || section == HomeSection.Videos) && post.hasVideo)) ({ onPostFromStart(post) }) else null,
             onAuthor = post.blogUrl.takeIf { it.isNotBlank() }?.let { url -> { onBlogClick(url) } },
             onRemoveHistory = if (section == HomeSection.History && onRemoveHistory != null)
                 ({ onRemoveHistory(post) }) else null,
-            onRemoved = { actionPost = null; focusMenu = true })
+            onRemoved = { actionPost = null; focusMenu = true },
+            onLibraryChanged = { actionPost = null; focusMenu = true })
     }
 }
 
@@ -226,11 +292,12 @@ private fun HomeContent(
     onPostClick: (Post) -> Unit,
     onBlogClick: (String) -> Unit,
     menuFocus: FocusRequester,
+    onRetryAuthor: (String) -> Unit,
     onPostLongClick: (Post) -> Unit,
 ) {
-    val rows = state.rows.filter { it.posts.isNotEmpty() }
+    val rows = state.rows.filter { it.posts.isNotEmpty() || it.loading || it.failed }
     if (rows.isEmpty() && continueWatching.isEmpty()) {
-        EmptyState(title = "Публикации ещё впереди", detail = "Новые публикации ваших авторов появятся здесь.")
+        EmptyState(title = tr(UiText.home_screen_015), detail = tr(UiText.home_screen_016))
         return
     }
     val listState = rememberLazyListState()
@@ -242,7 +309,7 @@ private fun HomeContent(
     ) {
         if (continueWatching.isNotEmpty()) item(key = "continue_watching") {
             PostRow(
-                title = "Продолжить просмотр", posts = continueWatching, onPostClick = onPostClick,
+                title = tr(UiText.tv_channel_preferences_001), posts = continueWatching, onPostClick = onPostClick,
                 horizontalPadding = 24.dp, titleModifier = Modifier.testTag("continue_watching"),
                 menuFocus = menuFocus,
                 compactSingle = true,
@@ -250,6 +317,13 @@ private fun HomeContent(
             )
         }
         items(items = rows, key = { it.blog.url }) { row ->
+            if (row.posts.isEmpty()) {
+                Column(Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) {
+                    Text(row.blog.title.ifBlank { row.blog.url }, style = MaterialTheme.typography.titleMedium)
+                    if (row.loading) Text(tr(UiText.home_screen_017), style = MaterialTheme.typography.bodySmall)
+                    else if (row.failed) TvActionButton(tr(UiText.home_screen_018), { onRetryAuthor(row.blog.url) })
+                }
+            } else {
             PostRow(
                 title = row.blog.title.ifBlank { row.blog.url }, authorName = row.blog.ownerName,
                 avatarUrl = row.blog.avatarUrl, posts = row.posts, onPostClick = onPostClick,
@@ -258,6 +332,8 @@ private fun HomeContent(
                 menuFocus = menuFocus,
                 onPostLongClick = onPostLongClick,
             )
+            if (row.failed) TvActionButton(tr(UiText.home_screen_019, row.blog.title), { onRetryAuthor(row.blog.url) }, Modifier.padding(start = 24.dp))
+            }
         }
     }
 }

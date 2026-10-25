@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.core.ui.component
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -28,7 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.ricox.boostyvp.core.model.Blog
 import io.github.ricox.boostyvp.core.ui.component.AuthorAvatar
 import io.github.ricox.boostyvp.core.ui.component.BackButton
@@ -63,7 +66,7 @@ fun AuthorHeader(blog: Blog?, blogUrl: String, onBack: () -> Unit, interactive: 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
                 HeaderBack(onBack, interactive)
-                if (blog?.isSubscribed == true) StatusChip("Вы подписаны", icon = Icons.Default.Check)
+                if (blog?.isSubscribed == true) StatusChip(tr(UiText.author_header_001), icon = Icons.Default.Check)
             }
             Spacer(Modifier.height(32.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -77,7 +80,7 @@ fun AuthorHeader(blog: Blog?, blogUrl: String, onBack: () -> Unit, interactive: 
                         style = MaterialTheme.typography.bodyLarge, color = colors.onSurface,
                         maxLines = 2, overflow = TextOverflow.Ellipsis)
                     if (blog != null && blog.postCount > 0) Text(
-                        "${NumberFormat.getIntegerInstance().format(blog.postCount)} публикаций",
+                        tr(UiText.author_header_002, NumberFormat.getIntegerInstance(io.github.ricox.boostyvp.localization.Language.locale).format(blog.postCount)),
                         style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
                 }
             }
@@ -91,7 +94,7 @@ private fun CompactBlogHeader(blog: Blog?, url: String, name: String, size: Auth
     val reduced = size == AuthorHeaderSize.Reduced
     val minimal = size == AuthorHeaderSize.Minimal
     val count = blog?.postCount?.takeIf { it > 0 }?.let {
-        " · ${NumberFormat.getIntegerInstance().format(it)} публикаций"
+        tr(UiText.author_header_003, NumberFormat.getIntegerInstance(io.github.ricox.boostyvp.localization.Language.locale).format(it))
     }.orEmpty()
     Column(Modifier.fillMaxWidth().testTag("author_header")
         .background(colors.surface, RoundedCornerShape(16.dp))
@@ -99,7 +102,7 @@ private fun CompactBlogHeader(blog: Blog?, url: String, name: String, size: Auth
         if (reduced) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically) {
             HeaderBack(onBack, interactive)
-            if (blog?.isSubscribed == true) StatusChip("Вы подписаны", icon = Icons.Default.Check)
+            if (blog?.isSubscribed == true) StatusChip(tr(UiText.author_header_001), icon = Icons.Default.Check)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(if (minimal) 8.dp else 16.dp),
             verticalAlignment = Alignment.CenterVertically) {
@@ -114,7 +117,7 @@ private fun CompactBlogHeader(blog: Blog?, url: String, name: String, size: Auth
                 if (reduced && !blog?.title.isNullOrBlank() && blog?.title != name) Text(blog!!.title,
                     style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            if (!reduced && blog?.isSubscribed == true) StatusChip("Вы подписаны", icon = Icons.Default.Check)
+            if (!reduced && blog?.isSubscribed == true) StatusChip(tr(UiText.author_header_001), icon = Icons.Default.Check)
         }
     }
 }

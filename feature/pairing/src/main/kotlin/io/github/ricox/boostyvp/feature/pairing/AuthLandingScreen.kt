@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.feature.pairing
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -66,12 +69,12 @@ fun AuthLandingScreen(
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    "Ваш Boosty на большом экране",
+                    tr(UiText.auth_landing_screen_001),
                     style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.semantics { heading() },
                 )
-                Text("Войдите в аккаунт, чтобы смотреть любимых авторов.",
+                Text(tr(UiText.auth_landing_screen_002),
                     style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
@@ -80,25 +83,25 @@ fun AuthLandingScreen(
                 horizontalArrangement = Arrangement.spacedBy(24.dp),
             ) {
                 AuthOption(
-                    title = "С телефона или компьютера",
-                    subtitle = "Откройте QR-код и продолжите вход\nв браузере на своём устройстве.",
-                    action = "Показать QR-код",
+                    title = tr(UiText.auth_landing_screen_003),
+                    subtitle = tr(UiText.auth_landing_screen_004),
+                    action = tr(UiText.auth_landing_screen_005),
                     icon = R.drawable.auth_phone,
                     recommended = true,
                     onClick = onChoosePhonePairing,
                     modifier = Modifier.weight(1f).fillMaxHeight().focusRequester(firstOption),
                 )
                 AuthOption(
-                    title = "Войти на этом ТВ",
-                    subtitle = "Введите номер телефона и код\nподтверждения с помощью пульта.",
-                    action = "Войти по номеру телефона",
+                    title = tr(UiText.auth_landing_screen_006),
+                    subtitle = tr(UiText.auth_landing_screen_007),
+                    action = tr(UiText.auth_landing_screen_008),
                     icon = R.drawable.auth_tv,
                     onClick = onChooseOnDevice,
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                 )
             }
 
-            Text("Выберите способ стрелками на пульте и нажмите ОК",
+            Text(tr(UiText.auth_landing_screen_009),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.CenterHorizontally))
         }
@@ -148,7 +151,7 @@ private fun AuthOption(
             ) {
                 Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(40.dp))
                 if (recommended) {
-                    Text("Рекомендуем", style = MaterialTheme.typography.labelMedium,
+                    Text(tr(UiText.auth_landing_screen_010), style = MaterialTheme.typography.labelMedium,
                         modifier = Modifier
                             .background(content.copy(alpha = 0.09f), RoundedCornerShape(50))
                             .padding(horizontal = 12.dp, vertical = 6.dp))

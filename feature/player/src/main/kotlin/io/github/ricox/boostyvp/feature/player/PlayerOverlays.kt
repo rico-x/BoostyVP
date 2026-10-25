@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.feature.player
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import android.content.Context
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -51,7 +54,7 @@ internal class NextUpOverlay(context: Context) : LinearLayout(context) {
         setPadding(padding, context.playerDp(18), padding, context.playerDp(20))
         val accent = InterfacePreferences(context).load().accent.textArgb
         heading.apply {
-            text = "Далее"
+            text = tr(UiText.player_overlays_001)
             textSize = 16f
             typeface = Typeface.create("sans-serif", Typeface.BOLD)
             setTextColor(accent)
@@ -82,7 +85,7 @@ internal class NextUpOverlay(context: Context) : LinearLayout(context) {
         removeCallbacks(tick)
         this.onPlay = onPlay
         remaining = seconds.coerceAtLeast(1)
-        title.text = nextTitle.ifBlank { "Без названия" }
+        title.text = nextTitle.ifBlank { tr(UiText.post_actions_dialog_002) }
         render()
         visibility = View.VISIBLE
         postDelayed(tick, 1_000)
@@ -101,8 +104,8 @@ internal class NextUpOverlay(context: Context) : LinearLayout(context) {
     }
 
     private fun render() {
-        hint.text = "Через $remaining с · OK — сейчас · другая кнопка — отмена"
-        contentDescription = "Далее: ${title.text}. ${hint.text}"
+        hint.text = tr(UiText.player_overlays_002, remaining)
+        contentDescription = tr(UiText.player_overlays_003, title.text, hint.text)
     }
 
     override fun onDetachedFromWindow() {

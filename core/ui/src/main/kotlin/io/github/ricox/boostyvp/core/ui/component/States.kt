@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.core.ui.component
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -57,7 +60,7 @@ fun LoadingState(modifier: Modifier = Modifier) {
                 drawCircle(track, style = stroke)
                 drawArc(accent, rotation, 100f, useCenter = false, style = stroke)
             }
-            Text("Загружаем…", style = MaterialTheme.typography.titleMedium,
+            Text(tr(UiText.states_001), style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -76,14 +79,14 @@ fun EmptyState(
 @Composable
 fun ErrorState(
     modifier: Modifier = Modifier,
-    title: String = "Не удалось загрузить",
+    title: String = tr(UiText.states_002),
     detail: String? = null,
     onRetry: (() -> Unit)? = null,
 ) {
     val retryFocus = remember { FocusRequester() }
     CenteredMessage(title, modifier, detail, Icons.Default.Warning) {
         if (onRetry != null) {
-            TvActionButton("Попробовать снова", onRetry,
+            TvActionButton(tr(UiText.states_003), onRetry,
                 modifier = Modifier.focusRequester(retryFocus), icon = Icons.Default.Refresh, primary = true)
             LaunchedEffect(Unit) { retryFocus.requestFocus() }
         }

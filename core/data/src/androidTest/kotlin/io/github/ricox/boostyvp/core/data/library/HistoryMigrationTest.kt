@@ -40,7 +40,7 @@ class HistoryMigrationTest {
             old.version = 1
         }
         val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
-            .addMigrations(LibraryDatabase.MIGRATION_1_2).build()
+            .addMigrations(LibraryDatabase.MIGRATION_1_2, LibraryDatabase.MIGRATION_2_3, LibraryDatabase.MIGRATION_3_4).build()
         try {
             assertEquals(42_000L, db.playbackProgress().position("a", "p", "v"))
             assertEquals(90_000L, db.playbackProgress().position("b", "p", "v"))

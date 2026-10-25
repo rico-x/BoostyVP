@@ -10,28 +10,42 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
-data class BlogPosts(val blog: Blog, val posts: List<Post>)
-data class HomeFeed(val hasSubscriptions: Boolean, val rows: List<BlogPosts>)
+data class BlogPosts(val blog: Blog, val posts: List<Post>, val loading: Boolean = false, val failed: Boolean = false)
+data class HomeFeed(val hasSubscriptions: Boolean, val rows: List<BlogPosts>, val refreshing: Boolean = false)
 
 /** A failed author may be omitted, but a complete outage must remain retryable. */
 class GetHomeFeed(
     private val feeds: FeedRepository,
     private val blogs: BlogRepository,
 ) {
-    suspend operator fun invoke(): HomeFeed = coroutineScope {
+    suspend operator fun invoke(onUpdate: (HomeFeed) -> Unit = {}): HomeFeed = coroutineScope {
         val subscriptions = feeds.subscriptions()
+        currentCoroutineContext().ensureActive()
         val requests = Semaphore(4)
-        val results = subscriptions.map { subscription ->
+        val updates = Mutex()
+        val rows = subscriptions.map { BlogPosts(it.blog, emptyList(), loading = true) }.toMutableList()
+        onUpdate(HomeFeed(subscriptions.isNotEmpty(), rows.toList(), refreshing = rows.isNotEmpty()))
+        val results = subscriptions.mapIndexed { index, subscription ->
             async {
                 requests.withPermit {
-                    try {
+                    val result = try {
                         Result.success(BlogPosts(subscription.blog, blogs.recentPosts(subscription.blog.url)))
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
                         Result.failure<BlogPosts>(e)
                     }
+                    updates.withLock {
+                        currentCoroutineContext().ensureActive()
+                        rows[index] = result.getOrNull() ?: BlogPosts(subscription.blog, emptyList(), failed = true)
+                        onUpdate(HomeFeed(subscriptions.isNotEmpty(), rows.toList(), rows.any { it.loading }))
+                    }
+                    result
                 }
             }
         }.awaitAll()
@@ -40,7 +54,9 @@ class GetHomeFeed(
         }
         HomeFeed(
             hasSubscriptions = subscriptions.isNotEmpty(),
-            rows = results.mapNotNull { it.getOrNull() }.filter { it.posts.isNotEmpty() },
+            rows = rows.filter { it.posts.isNotEmpty() || it.failed },
         )
     }
+
+    suspend fun author(blog: Blog) = BlogPosts(blog, blogs.recentPosts(blog.url))
 }

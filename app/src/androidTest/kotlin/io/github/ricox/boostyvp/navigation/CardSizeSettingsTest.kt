@@ -102,13 +102,13 @@ class CardSizeSettingsTest {
         activate("Интерфейс")
         compose.onNodeWithTag("card_size_preview_0").assertWidthIsEqualTo(160.dp)
         compose.onNodeWithTag("card_size_slider").performKeyInput { pressKey(Key.DirectionDown) }
-        compose.onNodeWithText("Как раньше").assertIsFocused()
-        compose.onNodeWithText("Как раньше").performKeyInput { pressKey(Key.DirectionCenter) }
-        compose.onNodeWithText("Как раньше").assertIsFocused()
+        compose.onNodeWithText("По умолчанию").assertIsFocused()
+        compose.onNodeWithText("По умолчанию").performKeyInput { pressKey(Key.DirectionCenter) }
+        compose.onNodeWithText("По умолчанию").assertIsFocused()
         compose.onNodeWithTag("card_size_preview_0").assertWidthIsEqualTo(216.dp)
-        compose.onNodeWithText("Как раньше").performKeyInput { pressKey(Key.DirectionRight) }
-        compose.onNodeWithText("Готово").assertIsFocused()
-        compose.onNodeWithText("Готово").performKeyInput { pressKey(Key.DirectionCenter) }
+        compose.onNodeWithText("По умолчанию").performKeyInput { pressKey(Key.DirectionRight) }
+        compose.onNodeWithText("Закрыть").assertIsFocused()
+        compose.onNodeWithText("Закрыть").performKeyInput { pressKey(Key.DirectionCenter) }
         assertEquals(CardSize.Default, CardSizePreferences(context).load())
     }
 

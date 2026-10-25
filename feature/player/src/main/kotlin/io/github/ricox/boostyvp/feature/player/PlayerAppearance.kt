@@ -98,11 +98,16 @@ internal fun applyPlayerAppearance(playerView: PlayerView, title: String) {
                     if (child.id == androidx.media3.ui.R.id.exo_rew_with_amount ||
                         child.id == androidx.media3.ui.R.id.exo_ffwd_with_amount
                     ) {
+                        // Media3 1.11 supplies the arrow as the button background, not
+                        // foreground. Preserve that native drawable before replacing the
+                        // background with our TV focus state; do not depend on private R IDs.
+                        val nativeArrow = child.background?.constantState
+                            ?.newDrawable(context.resources)?.mutate()
                         // These labels sit inside Media3's circular arrows. The generic button
                         // font and the stock bottom padding move them out of the arrows' centre.
                         child.setTextSize(
                             TypedValue.COMPLEX_UNIT_PX,
-                            context.resources.getDimension(androidx.media3.ui.R.dimen.exo_icon_text_size),
+                            context.playerDp(9).toFloat(),
                         )
                         child.gravity = Gravity.CENTER
                         child.includeFontPadding = false
@@ -110,6 +115,7 @@ internal fun applyPlayerAppearance(playerView: PlayerView, title: String) {
                         child.setPadding(0, context.playerDp(3), 0, 0)
                         child.background = playerControlBackground(context)
                         child.backgroundTintList = null
+                        if (nativeArrow != null) child.foreground = nativeArrow
                         child.foregroundTintList = playerControlTextColors(context)
                     } else {
                         child.textSize = 14f

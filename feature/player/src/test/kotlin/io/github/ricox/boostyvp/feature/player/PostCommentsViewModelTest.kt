@@ -28,6 +28,15 @@ class PostCommentsViewModelTest {
         assertFalse(model.state.value.expanded)
         coVerify(exactly = 0) { repository.page(any(), any(), any(), any()) }
     }
+    @Test fun `video comments open immediately and rebinding does not toggle or refetch`() = runTest(dispatcher) {
+        coEvery { repository.page("blog", "post", null, null) } returns Page(emptyList(), null, true)
+        val model = PostCommentsViewModel(repository)
+        model.bind(post(), initiallyExpanded = true); advanceUntilIdle()
+        model.bind(post(), initiallyExpanded = true); advanceUntilIdle()
+        assertTrue(model.state.value.expanded)
+        assertTrue(model.state.value.root.loaded)
+        coVerify(exactly = 1) { repository.page(any(), any(), any(), any()) }
+    }
     @Test fun `expansion loads once and reopening uses cached comments`() = runTest(dispatcher) {
         coEvery { repository.page("blog", "post", null, null) } returns Page(listOf(comment("one")), null, true)
         val model = PostCommentsViewModel(repository)

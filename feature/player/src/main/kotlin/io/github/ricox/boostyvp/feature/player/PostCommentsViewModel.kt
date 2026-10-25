@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.feature.player
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -41,7 +44,7 @@ class PostCommentsViewModel @Inject constructor(private val repository: PostComm
     private val jobs = mutableMapOf<Long?, Job>()
     private val cursors = mutableMapOf<Long?, MutableSet<String>>()
 
-    fun bind(value: Post) {
+    fun bind(value: Post, initiallyExpanded: Boolean = false) {
         if (post?.let { it.id == value.id && it.blogUrl == value.blogUrl &&
                 it.hasAccess == value.hasAccess && it.commentsDenied == value.commentsDenied } == true) {
             post = value
@@ -53,6 +56,7 @@ class PostCommentsViewModel @Inject constructor(private val repository: PostComm
         cursors.clear()
         post = value
         mutable.value = PostCommentsState()
+        if (initiallyExpanded) toggle()
     }
 
     fun toggle() {
@@ -93,7 +97,7 @@ class PostCommentsViewModel @Inject constructor(private val repository: PostComm
                 throw e
             } catch (e: Exception) {
                 if (generation == epoch) update(parentId, before.copy(
-                    error = "Не удалось загрузить комментарии. Нажмите «Повторить».", loading = false))
+                    error = tr(UiText.post_comments_view_model_001), loading = false))
             }
         }
     }

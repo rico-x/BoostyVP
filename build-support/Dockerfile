@@ -11,7 +11,7 @@ RUN curl -fL --retry 3 -o /tmp/android-tools.zip https://dl.google.com/android/r
     && mkdir -p /opt/android-sdk/cmdline-tools \
     && unzip -q /tmp/android-tools.zip -d /opt/android-sdk/cmdline-tools \
     && mv /opt/android-sdk/cmdline-tools/cmdline-tools /opt/android-sdk/cmdline-tools/latest
-RUN for boosty_sdk_package in 'platforms;android-35' 'build-tools;34.0.0' 'build-tools;35.0.0' 'platform-tools'; do \
+RUN for boosty_sdk_package in 'platforms;android-36' 'build-tools;34.0.0' 'build-tools;35.0.0' 'platform-tools'; do \
     android --sdk=/opt/android-sdk --no-metrics sdk install "$boosty_sdk_package" || exit 1; \
     done
 

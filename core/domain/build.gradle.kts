@@ -15,6 +15,7 @@ kotlin {
 
 dependencies {
     api(project(":core:model"))
+    implementation(project(":core:localization"))
     implementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

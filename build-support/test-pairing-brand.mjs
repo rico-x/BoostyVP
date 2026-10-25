@@ -4,13 +4,13 @@ import { readFileSync } from 'node:fs';
 import { webcrypto } from 'node:crypto';
 import vm from 'node:vm';
 
-const script = readFileSync(new URL('../core/auth/src/main/resources/pairing/browser-handoff.js', import.meta.url), 'utf8');
+const scripts = Object.fromEntries(['ru', 'en'].map(code => [code, readFileSync(new URL(`../localization/${code}/src/main/resources/localization/${code}/pairing/browser-handoff.js`, import.meta.url), 'utf8')]));
 const key = new Uint8Array(32).fill(7);
 const encodedKey = Buffer.from(key).toString('base64url');
 const target = `http://192.168.1.20:8765/p/${encodedKey}`;
 const fixture = { accessToken: 'synthetic-access', refreshToken: 'synthetic-refresh' };
 
-function browser(url, { pairingPage = false } = {}) {
+function browser(url, { pairingPage = false, language = 'ru' } = {}) {
   const location = new URL(url);
   const notices = [];
   const confirmation = { className: '', focus() {}, textContent: '' };
@@ -30,7 +30,7 @@ function browser(url, { pairingPage = false } = {}) {
     btoa: value => Buffer.from(value, 'binary').toString('base64'),
   };
   context.window = context;
-  vm.runInNewContext(script, context, { timeout: 1000 });
+  vm.runInNewContext(scripts[language], context, { timeout: 1000 });
   return { navigation, notices, confirmation };
 }
 
@@ -57,4 +57,21 @@ assert.ok(wrongFragment.notices.some(value => value.includes('Адрес ТВ п
 const local = browser('http://192.168.1.20:8765/link', { pairingPage: true });
 assert.equal(local.confirmation.className, 'status ok');
 assert.ok(local.confirmation.textContent.includes('Закладка работает'));
-console.log('PASS: new-name encrypted handoff, remote-target rejection, fragment rejection, local bookmark check');
+const english = browser(`https://boosty.to/#boostyvp=${encodeURIComponent(target)}`, {language: 'en'});
+let englishTimeout;
+const englishReturn = await Promise.race([english.navigation, new Promise((_, reject) => { englishTimeout = setTimeout(() => reject(Error('English handoff timeout')), 5000); })]).finally(() => clearTimeout(englishTimeout));
+assert.equal(englishReturn.pathname, '/link');
+assert.ok(englishReturn.hash.startsWith('#sealed='));
+const englishEnvelope = Buffer.from(decodeURIComponent(englishReturn.hash.slice('#sealed='.length)), 'base64');
+const englishPlain = await webcrypto.subtle.decrypt({name: 'AES-GCM', iv: englishEnvelope.subarray(0, 12)}, imported, englishEnvelope.subarray(12));
+assert.deepEqual(JSON.parse(Buffer.from(englishPlain).toString('utf8')), {auth: JSON.stringify(fixture), clientId: 'synthetic-client'});
+assert.ok(browser('https://boosty.to/', {language: 'en'}).notices.some(value => value.includes('TV address lost')));
+const stripStrings = value => value.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, "'TEXT'");
+assert.equal(stripStrings(scripts.ru), stripStrings(scripts.en), 'Only bookmark messages may differ between language packs');
+for (const code of ['ru', 'en']) {
+  const page = readFileSync(new URL(`../localization/${code}/src/main/resources/localization/${code}/pairing/page.html`, import.meta.url), 'utf8');
+  assert.ok(page.includes(`lang="${code}"`));
+  assert.ok(page.includes('%%BROWSER_BOOKMARKLET%%'));
+  if (code === 'en') assert.ok(!/[А-Яа-яЁё]/.test(page));
+}
+console.log('PASS: RU/EN encrypted handoff, unchanged bookmark logic, target and fragment rejection, local bookmark check');

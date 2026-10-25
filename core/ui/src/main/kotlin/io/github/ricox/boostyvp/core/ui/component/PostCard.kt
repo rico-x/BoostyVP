@@ -1,6 +1,10 @@
 package io.github.ricox.boostyvp.core.ui.component
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -51,7 +55,7 @@ import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import io.github.ricox.boostyvp.core.model.Post
 import io.github.ricox.boostyvp.core.ui.appearance.LocalCardSize
 import io.github.ricox.boostyvp.core.ui.appearance.LocalInterfaceOptions
@@ -99,13 +103,15 @@ fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier, inA
         }
     }
     val highlighted = focused || previewFocused
-    val zoom by animateFloatAsState(if (highlighted && options.focusZoom) 1.02f else 1f,
-        animationSpec = if (options.animateFocus) tween(120) else snap(), label = "cardFocus")
+    val zoom by animateFloatAsState(options.focusScale(highlighted),
+        animationSpec = if (options.animateFocus) tween(options.focusAnimationMillis) else snap(), label = "cardFocus")
     val light = options.cardStyle == CardStyle.Light
     val frame = if (options.focusColor == FocusColor.Accent) LocalAccentText.current else colors.onSurface
+    val focusFrame by animateColorAsState(if (highlighted) frame else if (light) Color.Transparent else colors.border.copy(alpha = 0.4f),
+        animationSpec = if (options.animateFocus) tween(options.focusAnimationMillis) else snap(), label = "cardFocusFrame")
     val measurer = rememberTextMeasurer()
-    val date = remember(post.publishedAt) {
-        if (post.publishedAt > 0) SimpleDateFormat("d MMM", Locale.forLanguageTag("ru"))
+    val date = remember(post.publishedAt, io.github.ricox.boostyvp.localization.Language.code) {
+        if (post.publishedAt > 0) SimpleDateFormat("d MMM", io.github.ricox.boostyvp.localization.Language.locale)
             .format(Date(post.publishedAt * 1000L)) else ""
     }
     // Own the focus transition so "no animation" really snaps instead of retaining
@@ -159,15 +165,15 @@ fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier, inA
         .scale(zoom).clip(shape)
         .background(if (light) Color.Transparent else if (highlighted) colors.surfaceVariant else colors.surface)
         .border(if (highlighted) options.focusWidth.dp else 1.dp,
-            if (highlighted) frame else if (light) Color.Transparent else colors.border.copy(alpha = 0.4f), shape)
+            focusFrame, shape)
         .combinedClickable(interactionSource = remember { MutableInteractionSource() }, indication = null,
-            role = Role.Button, onLongClickLabel = "Действия публикации", onLongClick = onLongClick, onClick = onClick)) {
+            role = Role.Button, onLongClickLabel = tr(UiText.post_card_001), onLongClick = onLongClick, onClick = onClick)) {
         @Composable fun Thumbnail(thumbnailModifier: Modifier) {
             Box(thumbnailModifier.aspectRatio(16f / 9f).clip(if (light || horizontal) shape else RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
                 .background(Brush.linearGradient(listOf(colors.surfaceVariant, colors.background)))) {
                 if (post.hasVideo) Icon(Icons.Default.PlayArrow, null, tint = colors.primary.copy(alpha = 0.5f),
                     modifier = Modifier.align(Alignment.Center).size(if (compact) 28.dp else 44.dp))
-                else Text("Публикация", color = colors.onSurfaceVariant,
+                else Text(tr(UiText.post_card_002), color = colors.onSurfaceVariant,
                     style = metadataStyle, modifier = Modifier.align(Alignment.Center))
                 if (post.thumbnailUrl != null) AsyncImage(
                     model = post.thumbnailUrl, contentDescription = null, contentScale = ContentScale.Crop,
@@ -176,26 +182,32 @@ fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier, inA
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
                     listOf(Color.Transparent, Color.Black.copy(alpha = 0.5f)))))
                 when {
-                    !post.hasAccess -> Badge(Icons.Default.Lock, "По подписке")
-                    post.isWaitingVideo -> Badge(null, "Обрабатывается")
+                    !post.hasAccess -> Badge(Icons.Default.Lock, tr(UiText.post_card_003))
+                    post.isWaitingVideo -> Badge(null, tr(UiText.post_card_004))
                     post.primaryVideo != null && options.showDuration -> Badge(null, post.primaryVideo!!.duration.formatDuration())
-                    !post.hasVideo -> Badge(null, "Текст")
+                    !post.hasVideo -> Badge(null, tr(UiText.post_card_005))
                 }
                 val watched = LocalWatchProgress.current[post.id]
                 if (watched != null && watched > 0f) {
                     WatchProgressBar(watched, Modifier.align(Alignment.BottomStart))
                 }
-                if (post.isPinned) Text("Закреплено", style = MaterialTheme.typography.labelSmall,
+                if (post.isPinned) Text(tr(UiText.post_card_006), style = MaterialTheme.typography.labelSmall,
                     color = colors.onPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.align(Alignment.TopStart).padding(if (compact) 4.dp else 10.dp)
                         .background(colors.primary, RoundedCornerShape(6.dp))
                         .padding(horizontal = 8.dp, vertical = 4.dp))
+                if (post.id in LocalLibraryControls.current.library.watched) Text(tr(UiText.post_card_007),
+                    style = MaterialTheme.typography.labelSmall, color = Color.White,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)
+                        .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 6.dp, vertical = 3.dp)
+                        .semantics { contentDescription = tr(UiText.post_card_007) })
             }
         }
         @Composable fun Caption(captionModifier: Modifier) {
             Column(captionModifier.padding((size.paddingDp + options.density.cardPaddingDeltaDp).dp),
                 verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 6.dp)) {
-                Text(post.title.ifBlank { "Без названия" }, style = MaterialTheme.typography.titleMedium.copy(
+                Text(post.title.ifBlank { tr(UiText.post_actions_dialog_002) }, style = MaterialTheme.typography.titleMedium.copy(
                     fontSize = textSize.titleSp.sp, lineHeight = (textSize.titleSp + 6).sp),
                     minLines = options.titleLines, maxLines = options.titleLines, overflow = TextOverflow.Ellipsis,
                     onTextLayout = { titleOverflow = it.hasVisualOverflow })
@@ -231,7 +243,7 @@ fun PostCard(post: Post, onClick: () -> Unit, modifier: Modifier = Modifier, inA
             Caption(Modifier.fillMaxWidth())
         }
     }
-    if (focused && titleOverflow && options.fullTitle && !previewFocused) FocusedTitle(post.title.ifBlank { "Без названия" })
+    if (focused && titleOverflow && options.fullTitle && !previewFocused) FocusedTitle(post.title.ifBlank { tr(UiText.post_actions_dialog_002) })
     if (titleReader) FullTitleDialog(post.title) { titleReader = false }
 }
 

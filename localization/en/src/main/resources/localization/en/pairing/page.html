@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Connect to BoostyVP</title>
+<style>
+  :root { color-scheme:dark; --accent:#D64045; --ink:#FFFFFF; --bg:#101114;
+    --surface:#191A1F; --raised:#303239; --text:#F2F3F5; --muted:#B8BDC7; --border:#44464F; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:40px 24px 48px; background:radial-gradient(ellipse at 100% 0, #302416 0, transparent 55%),var(--bg);
+    color:var(--text); font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:720px; margin:auto; }
+  .brand { display:flex; align-items:center; gap:10px; margin-bottom:36px; font-size:24px; font-weight:750; }
+  .brand svg { width:26px; height:26px; fill:var(--accent); }
+  .brand span { color:var(--accent); background:#D640451F; border-radius:7px; padding:2px 9px; font-size:14px; }
+  h1 { font-size:clamp(30px,5vw,42px); line-height:1.15; letter-spacing:-.025em; margin:12px 0 16px; }
+  h2 { font-size:22px; line-height:1.35; margin:0 0 14px; letter-spacing:-.015em; }
+  h3 { font-size:17px; margin:28px 0 10px; }
+  p { margin:8px 0 16px; }
+  .muted, li { color:var(--muted); }
+  .label { color:var(--accent); font-size:12px; font-weight:700; letter-spacing:1.5px; }
+  .card { margin:28px 0; background:var(--surface); padding:28px; border:1px solid #44464F80; border-radius:22px; }
+  .step { display:inline-flex; align-items:center; justify-content:center; min-width:32px; height:32px;
+    margin-right:6px; border-radius:9px; background:#D640451F; color:var(--accent); font-size:17px; }
+  button, .button { display:block; width:100%; min-height:50px; border:1px solid transparent; border-radius:12px;
+    padding:14px 20px; background:var(--accent); color:var(--ink);
+    font-family:inherit; font-size:16px; font-weight:700; line-height:1.4; text-align:center;
+    text-decoration:none; cursor:pointer; margin:16px 0 0; transition:background .15s, border-color .15s; }
+  button:hover:not(:disabled), .button:hover { background:#FFC35D; }
+  button:disabled { opacity:.55; cursor:wait; }
+  .secondary { color:var(--text); background:var(--raised); border-color:var(--border); }
+  .secondary:hover:not(:disabled) { background:#343A45; }
+  .bookmark-drag { cursor:grab; border:2px dashed var(--ink); user-select:none; }
+  .bookmark-drag:active { cursor:grabbing; }
+  textarea, input, select { width:100%; min-height:48px; border:1px solid var(--border); border-radius:10px;
+    padding:14px; background:var(--bg); color:var(--text); font:14px/1.5 ui-monospace,monospace; }
+  select { font:inherit; cursor:pointer; }
+  textarea { resize:vertical; min-height:96px; }
+  #bookmark-url { font-size:12px; min-height:80px; }
+  label { display:block; margin:16px 0 8px; font-size:14px; font-weight:600; }
+  #guide-title { margin-top:28px; }
+  details { margin-top:20px; padding-top:16px; border-top:1px solid #44464F80; }
+  summary { cursor:pointer; color:var(--accent); min-height:44px; padding:8px 0; }
+  ol { padding-left:24px; }
+  li { padding-left:4px; padding-bottom:12px; }
+  b { color:var(--text); }
+  code { overflow-wrap:anywhere; color:var(--text); }
+  a { color:var(--accent); text-underline-offset:4px; }
+  .note { font-size:14px; color:var(--muted); }
+  .status { padding:18px 20px; border:1px solid var(--border); border-radius:14px;
+    margin:20px 0; background:var(--raised); overflow-wrap:anywhere; }
+  .ok { background:#16351F; color:#A1EDB2; border-color:#386548; }
+  .err { background:#3A1B1B; color:#FFB3B3; border-color:#824848; }
+  :focus-visible { outline:3px solid var(--text); outline-offset:4px; }
+  input:focus, textarea:focus, select:focus { border-color:var(--accent); }
+  [hidden] { display:none !important; }
+  @media (max-width:480px) { body { padding:24px 16px 36px; } .brand { margin-bottom:28px; }
+    .card { padding:20px; border-radius:18px; } h2 { font-size:20px; } }
+  @media (prefers-reduced-motion:reduce) { *, *::before, *::after { transition:none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3L21 12L5 21Z"/></svg>Boosty <span>TV</span></div>
+  <div class="label">BOOSTYVP · CONNECT</div>
+  <h1>Connect Boosty to your TV</h1>
+  <p class="muted">Use the browser on a phone or computer where you sign in to Boosty.
+    This device and your TV must be on the same local network.</p>
+  <p class="note">The address <code id="connection-address"></code> does not expire
+    while the connection screen is open on your TV.</p>
+
+  <section id="review" class="card" hidden>
+    <h2>Session ready to transfer</h2>
+    <p class="muted">Connect Boosty to your TV <b id="tv-address"></b>?</p>
+    <p class="note">Your session is encrypted. You do not need to copy or enter a token manually.</p>
+    <button id="send-session" type="button">Send to TV</button>
+  </section>
+
+  <div id="status" role="status" aria-live="polite" hidden></div>
+  <div id="setup">
+    <label for="device-guide">Instructions for your device</label>
+    <select id="device-guide">
+      <option value="computer">Computer</option>
+      <option value="android">Android · Chrome</option>
+      <option value="ios">iPhone / iPad</option>
+    </select>
+    <p class="note">Your device is detected automatically. Select another if needed.</p>
+    <h2 id="guide-title">Computer instructions</h2>
+
+    <section class="card">
+      <h2><span class="step">1.</span> Save the BoostyVP bookmark</h2>
+      <p class="muted">You only need to do this once. The bookmark reads your session on Boosty and returns it to your TV.</p>
+      <p class="note">Replace your old bookmark address with the version from this page: Chrome may have truncated the previous long address.</p>
+      <div id="guide-computer">
+        <p>Drag the <b>BoostyVP</b> button to your browser bookmarks bar.
+          Its name and full address will be saved together.</p>
+        <a id="install-bookmark" class="button bookmark-drag" href="%%BROWSER_BOOKMARKLET%%"
+          draggable="true" aria-describedby="bookmark-drag-help">BoostyVP</a>
+        <p id="bookmark-drag-help" class="note">Hold the button with your mouse and drag it to the bookmarks bar.
+          In Chrome and Edge, show the bar with <b>Ctrl+Shift+B</b>
+          (on Mac — <b>⌘Shift+B</b>).</p>
+        <details>
+          <summary>Cannot drag? Add it manually</summary>
+          <ol>
+            <li>Press the copy button below, then <b>Ctrl+D</b> (on Mac — <b>⌘D</b>).
+              Name the bookmark <b>BoostyVP</b> and save it.</li>
+            <li>Open the new bookmark for editing from the bookmarks menu.
+              Replace the <b>Address / URL</b> field with the complete copied code and save.</li>
+          </ol>
+        </details>
+      </div>
+      <button id="copy-bookmark" type="button">Copy bookmark address</button>
+      <details id="bookmark-code">
+        <summary>Bookmark address for manual copying</summary>
+        <label for="bookmark-url">Paste into the bookmark address, not the search bar</label>
+        <textarea id="bookmark-url" readonly autocapitalize="off" spellcheck="false">%%BROWSER_BOOKMARKLET%%</textarea>
+      </details>
+      <div id="guide-android" hidden>
+        <ol>
+          <li>Bookmark any page using <b>⋮ → ★</b>.</li>
+          <li>Edit the bookmark. Name it <b>BoostyVP</b> and replace its address with the complete copied text.</li>
+          <li>Return to the open page. Tap the address bar, type <b>BoostyVP</b> and select the suggestion with a <b>star</b> and the <code>javascript:</code> address. Pressing Enter starts a search.</li>
+        </ol>
+        <p><b>Launch from the address-bar suggestion, not from ⋮ → Bookmarks.</b> Do not open the bookmark in a new tab.</p>
+      </div>
+      <div id="guide-ios" hidden>
+        <ol>
+          <li>Bookmark any page in your browser.
+            In Safari: <b>Share → Add Bookmark</b>.</li>
+          <li>Open your bookmarks, hold the saved bookmark and choose <b>Edit</b>.</li>
+          <li>Name it <b>BoostyVP</b>, replace its address with the copied text and save.</li>
+          <li>Return to the open page. Open bookmarks and select <b>BoostyVP</b> in this same tab.</li>
+        </ol>
+      </div>
+      <h3>Test the saved bookmark</h3>
+      <p class="muted">Stay on this page and launch the saved <b>BoostyVP</b> bookmark.
+        Follow the launch instructions above.</p>
+      <div id="bookmark-test-status" class="status" role="status" aria-live="polite" tabindex="-1">Waiting for the bookmark…</div>
+      <details>
+        <summary>I select the bookmark, but nothing happens</summary>
+        <ol>
+          <li>Return to the open browser page. Run the bookmark on that page, in the same tab.</li>
+          <li>Check the saved bookmark address: it must start with <code>javascript:</code>. If it is a website or search-engine address, replace it with the complete copied text.</li>
+        </ol>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2><span class="step">2.</span> Open Boosty</h2>
+      <p class="muted">Sign in as usual, including with Google. After signing in, return here and press the button below again to pass the current connection address.</p>
+      <a id="open-boosty" class="button" href="https://boosty.to/" target="_blank" rel="noopener noreferrer">Open Boosty</a>
+    </section>
+
+    <section class="card">
+      <h2><span class="step">3.</span> Run the bookmark on Boosty</h2>
+      <p id="run-computer" class="muted">In the open Boosty tab, select <b>BoostyVP</b>
+        on the bookmarks bar or in your browser bookmarks menu.</p>
+      <p id="run-android" class="muted" hidden>On Boosty, tap the address bar,
+        type <b>BoostyVP</b> and select the suggestion with a <b>star</b> and the
+        <code>javascript:</code> address. Do not press Enter.</p>
+      <p id="run-ios" class="muted" hidden>On Boosty, open your browser bookmarks
+        and select <b>BoostyVP</b>. Run it in the current tab.</p>
+      <p class="muted">Your browser will return to the connection page — select <b>Send to TV</b>.</p>
+      <p class="note">The page stays available while the connection screen is open on your TV.</p>
+    </section>
+
+    <details class="card">
+      <summary>Alternative: paste your session manually</summary>
+      <p class="muted">If you already copied your session using the old bookmark or the app, paste it below.</p>
+      <p><a href="%%BOOKMARKLET%%">Legacy bookmark: copy session</a></p>
+      <form id="f" method="POST" action="%%SUBMIT%%">
+        <label for="payload">Copied session</label>
+        <textarea id="payload" name="payload" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="JSON with auth and clientId"></textarea>
+        <details>
+          <summary>Enter auth and _clientId separately</summary>
+          <label for="auth">auth</label>
+          <textarea id="auth" name="auth" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+          <label for="clientId">_clientId</label>
+          <input id="clientId" name="clientId" autocomplete="off" autocapitalize="off" spellcheck="false">
+        </details>
+        <button id="send-manual" type="submit" class="secondary">Send pasted session</button>
+      </form>
+    </details>
+  </div>
+  <p class="note">This page is served by your TV. Your session goes directly to the TV over your local network.</p>
+</main>
+<script>%%PAGE_SCRIPT%%</script>
+</body>
+</html>

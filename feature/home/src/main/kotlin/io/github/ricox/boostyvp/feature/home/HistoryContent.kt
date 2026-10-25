@@ -1,5 +1,8 @@
 package io.github.ricox.boostyvp.feature.home
 
+import io.github.ricox.boostyvp.localization.tr
+import io.github.ricox.boostyvp.localization.UiText
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
@@ -29,10 +32,10 @@ internal fun HistoryContent(
 ) {
     when (state) {
         HistoryUiState.Loading -> { LoadingState(); return }
-        HistoryUiState.Failed -> { ErrorState(title = "Не удалось открыть историю",
-            detail = "Попробуйте ещё раз. Записи не удалены.", onRetry = onRetry); return }
+        HistoryUiState.Failed -> { ErrorState(title = tr(UiText.history_content_001),
+            detail = tr(UiText.history_content_002), onRetry = onRetry); return }
         is HistoryUiState.Content -> if (state.entries.isEmpty()) {
-            EmptyState(title = "История пока пуста", detail = "Здесь появятся видео, которые вы смотрите на этом ТВ.\nИстория хранится отдельно для каждого аккаунта.")
+            EmptyState(title = tr(UiText.history_content_003), detail = tr(UiText.history_content_004))
             return
         }
     }

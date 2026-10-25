@@ -36,7 +36,7 @@ val LocalAccentText = staticCompositionLocalOf { Color(0xFFFF7C82) }
 /** Shared resource colors also theme the native Media3 controls. */
 @Composable
 fun BoostyVPTheme(content: @Composable () -> Unit) {
-    ProvideInterfaceOptions { StyledContent(content) }
+    ProvideInterfaceOptions { io.github.ricox.boostyvp.core.ui.appearance.ProvideMenuOptions { StyledContent(content) } }
 }
 
 @Composable
