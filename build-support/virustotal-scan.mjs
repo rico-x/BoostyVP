@@ -12,23 +12,38 @@ import { fileURLToPath } from 'node:url';
 
 const API = 'https://www.virustotal.com/api/v3';
 const MAX_UPLOAD_BYTES = 32 * 1024 * 1024;
+// Engines that reached a verdict. The other categories in the statistics (failure, timeout,
+// confirmed-timeout, type-unsupported) mean the engine did not check the file.
+const FINISHED = ['harmless', 'undetected', 'suspicious', 'malicious'];
 
 export const reportLink = sha256 => `https://www.virustotal.com/gui/file/${sha256}`;
 
+/** Why these statistics cannot clear a file, or null when they can. */
+function statsProblem(stats) {
+  const wellFormed = stats?.constructor === Object && FINISHED.every(key => key in stats)
+    && Object.values(stats).every(n => Number.isSafeInteger(n) && n >= 0);
+  if (!wellFormed) return 'VirusTotal returned malformed statistics';
+  return FINISHED.some(key => stats[key] > 0) ? null : 'no VirusTotal engine finished';
+}
+
 /** Engines that flagged the file; "suspicious" is shown but does not block a release. */
 export function verdict(stats, maxMalicious = 0) {
-  const malicious = stats.malicious ?? 0;
-  const suspicious = stats.suspicious ?? 0;
-  const engines = Object.values(stats).reduce((sum, n) => sum + n, 0);
-  return { malicious, suspicious, engines, blocked: malicious > maxMalicious };
+  const problem = statsProblem(stats);
+  if (problem) return { problem, malicious: 0, suspicious: 0, engines: 0, unfinished: 0, blocked: true };
+  const { malicious, suspicious } = stats;
+  const engines = FINISHED.reduce((sum, key) => sum + stats[key], 0);
+  const unfinished = Object.values(stats).reduce((sum, n) => sum + n, 0) - engines;
+  return { problem, malicious, suspicious, engines, unfinished, blocked: malicious > maxMalicious };
 }
 
 export function markdown(results) {
   const rows = results.map(r => {
     const v = verdict(r.stats);
-    const state = v.malicious ? `⚠️ ${v.malicious} из ${v.engines}` : `чисто, ${v.engines} антивирусов`;
-    const extra = v.suspicious ? `, подозрений: ${v.suspicious}` : '';
-    return `| \`${r.file}\` | [${state}${extra}](${reportLink(r.sha256)}) |`;
+    const flagged = v.malicious ? `⚠️ ${v.malicious} из ${v.engines}` : `чисто, ${v.engines} антивирусов`;
+    const state = v.problem ? '⛔ не проверено' : flagged;
+    const suspected = v.suspicious ? `, подозрений: ${v.suspicious}` : '';
+    const unfinished = v.unfinished ? `, без результата: ${v.unfinished}` : '';
+    return `| \`${r.file}\` | [${state}${suspected}${unfinished}](${reportLink(r.sha256)}) |`;
   });
   return ['| Файл | VirusTotal |', '|---|---|', ...rows].join('\n') + '\n';
 }
@@ -78,6 +93,11 @@ export function createClient({ apiKey, fetch = globalThis.fetch, sleep, now = Da
   };
 }
 
+function assertChecked(file, stats) {
+  const { problem } = verdict(stats);
+  assert.ok(!problem, `${file}: ${problem}; nothing is published unscanned`);
+}
+
 export async function scan(files, client, { now = Date.now, timeoutMs = 25 * 60_000, log = console.log } = {}) {
   const deadline = now() + timeoutMs;
   const results = [];
@@ -86,6 +106,7 @@ export async function scan(files, client, { now = Date.now, timeoutMs = 25 * 60_
     const sha256 = createHash('sha256').update(bytes).digest('hex');
     const stats = await client.lookup(sha256);
     if (stats) {
+      assertChecked(file, stats);
       log(`${file}: already analysed`);
       results.push({ file, sha256, stats });
     } else {
@@ -96,6 +117,7 @@ export async function scan(files, client, { now = Date.now, timeoutMs = 25 * 60_
   for (const item of pending) {
     const stats = await client.analysis(item.id, deadline);
     assert.ok(stats, `${item.file}: VirusTotal did not finish in time; nothing is published unscanned`);
+    assertChecked(item.file, stats);
     results.push({ file: item.file, sha256: item.sha256, stats });
   }
   return results.sort((a, b) => a.file.localeCompare(b.file, 'en'));
@@ -117,7 +139,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     let blocked = false;
     for (const r of results) {
       const v = verdict(r.stats, maxMalicious);
-      console.log(`${r.file}: malicious ${v.malicious}, suspicious ${v.suspicious}, engines ${v.engines} ${reportLink(r.sha256)}`);
+      console.log(`${r.file}: malicious ${v.malicious}, suspicious ${v.suspicious}, engines ${v.engines}, unfinished ${v.unfinished} ${reportLink(r.sha256)}`);
       if (v.blocked) { blocked = true; console.log(`::error::${r.file} is flagged by ${v.malicious} engines on VirusTotal`); }
     }
     if (blocked) process.exitCode = 1;

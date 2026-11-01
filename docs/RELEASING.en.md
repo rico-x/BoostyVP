@@ -42,8 +42,10 @@ AAB/Google Play publishing is not part of this process.
 `dry_run` does not publish, but signs and uploads APKs to VirusTotal: it is
 **not** a completely local/private check. Releases default to pre-release.
 VirusTotal findings block publication except for an explicitly chosen, reviewed
-`virustotal_max_malicious` threshold. Scans/checksums describe specific files,
-not proof of zero defects.
+`virustotal_max_malicious` threshold. A file with no finished checks or with
+malformed statistics blocks publication at any threshold. The report counts only
+engines that finished; the rest are listed as “без результата” (no result).
+Scans/checksums describe specific files, not proof of zero defects.
 
 ## Persistent signing identity
 
